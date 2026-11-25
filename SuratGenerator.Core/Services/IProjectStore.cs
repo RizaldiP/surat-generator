@@ -14,7 +14,9 @@ public interface IProjectStore
         string jobName,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<ProjectInfo>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ProjectInfo>> GetAllAsync(
+        bool includeMissing = false,
+        CancellationToken cancellationToken = default);
 
     Task<ProjectDetailInfo?> GetDetailAsync(Guid id, CancellationToken cancellationToken = default);
 
@@ -29,6 +31,7 @@ public interface IProjectStore
     Task<ProjectRefreshResult> RefreshFilesystemAsync(
         Guid projectId,
         IProgress<ProjectCreationProgressInfo>? progress = null,
+        bool pullMissingMasters = false,
         CancellationToken cancellationToken = default);
 
     Task<string> ResolveProjectPathAsync(Guid projectId, CancellationToken cancellationToken = default);
@@ -41,4 +44,6 @@ public interface IProjectStore
         Guid documentId,
         string status,
         CancellationToken cancellationToken = default);
+
+    Task<bool> DeleteAsync(Guid projectId, CancellationToken cancellationToken = default);
 }

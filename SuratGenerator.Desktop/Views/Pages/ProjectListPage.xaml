@@ -17,6 +17,11 @@
             <TextBlock Margin="0,4,0,0"
                        Text="Buat pekerjaan baru dan generate folder sesuai struktur master terkini."
                        Style="{StaticResource AppSecondaryText}"/>
+            <TextBlock Margin="0,8,0,0"
+                       AutomationProperties.AutomationId="HiddenProjectsInfo"
+                       Text="{Binding HiddenMissingCount, StringFormat='{}{0} pekerjaan disembunyikan karena folder hilang.'}"
+                       Visibility="{Binding HasHiddenMissing, Converter={StaticResource AppBoolToVisibility}}"
+                       Foreground="{DynamicResource AppWarningBrush}"/>
         </StackPanel>
 
         <Border Grid.Row="1" Style="{StaticResource AppCard}" Margin="0,16,0,12" Padding="12">

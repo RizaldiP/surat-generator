@@ -83,6 +83,7 @@ internal static class DatabaseInitializer
         ApplyV32Schema(dbContext);
         ApplyV33Schema(dbContext);
         ApplyV34Schema(dbContext);
+        ApplyV35Schema(dbContext);
     }
 
     private static void ApplyV31Schema(SuratGeneratorDbContext dbContext)
@@ -280,6 +281,19 @@ internal static class DatabaseInitializer
         dbContext.Database.ExecuteSqlRaw(
             "INSERT OR IGNORE INTO \"SchemaVersions\" (\"Version\", \"AppliedAt\") VALUES ({0}, {1});",
             "v3.4",
+            DateTimeOffset.UtcNow.ToString("o"));
+    }
+
+    private static void ApplyV35Schema(SuratGeneratorDbContext dbContext)
+    {
+        EnsureColumn(
+            dbContext,
+            "Projects",
+            "IsMissing",
+            "ALTER TABLE \"Projects\" ADD COLUMN \"IsMissing\" INTEGER NOT NULL DEFAULT 0;");
+        dbContext.Database.ExecuteSqlRaw(
+            "INSERT OR IGNORE INTO \"SchemaVersions\" (\"Version\", \"AppliedAt\") VALUES ({0}, {1});",
+            "v3.5",
             DateTimeOffset.UtcNow.ToString("o"));
     }
 

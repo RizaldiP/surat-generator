@@ -88,6 +88,10 @@ public class Phase1V3MigrationTests
                 Assert.Equal(1L, Convert.ToInt64(command.ExecuteScalar()));
                 command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'CategoryChecklistItems';";
                 Assert.Equal(1L, Convert.ToInt64(command.ExecuteScalar()));
+                command.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Projects') WHERE name = 'IsMissing';";
+                Assert.Equal(1L, Convert.ToInt64(command.ExecuteScalar()));
+                command.CommandText = "SELECT COUNT(*) FROM \"SchemaVersions\" WHERE \"Version\" = 'v3.5';";
+                Assert.Equal(1L, Convert.ToInt64(command.ExecuteScalar()));
             }
         }
         finally

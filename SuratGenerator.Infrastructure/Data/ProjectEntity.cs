@@ -14,6 +14,8 @@ public sealed class ProjectEntity
 
     public string StructureVersion { get; set; } = string.Empty;
 
+    public bool IsMissing { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }

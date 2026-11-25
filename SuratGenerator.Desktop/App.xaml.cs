@@ -28,6 +28,9 @@ public partial class App : Application
     private static readonly Lazy<IWorkspacePathService> WorkspacePathServiceInstance = new(() =>
         new WorkspacePathService());
 
+    private static readonly Lazy<IProjectFolderWatcher> ProjectFolderWatcherInstance = new(() =>
+        new ProjectFolderWatcher(WorkspacePathServiceInstance.Value, AppLogger));
+
     private static readonly Lazy<IWorkspaceFileService> WorkspaceFileServiceInstance = new(() =>
         new WorkspaceFileService());
 
@@ -87,6 +90,8 @@ public partial class App : Application
 
     internal static ITemplateFolderWatcher TemplateFolderWatcher => FolderWatcher.Value;
 
+    internal static IProjectFolderWatcher ProjectFolderWatcher => ProjectFolderWatcherInstance.Value;
+
     internal static IDocumentCategoryStore DocumentCategories => DocumentCategoryStoreService.Value;
 
     internal static IWorkspacePathService WorkspacePaths => WorkspacePathServiceInstance.Value;
@@ -128,6 +133,11 @@ public partial class App : Application
         if (FolderWatcher.IsValueCreated)
         {
             FolderWatcher.Value.Dispose();
+        }
+
+        if (ProjectFolderWatcherInstance.IsValueCreated)
+        {
+            ProjectFolderWatcherInstance.Value.Dispose();
         }
 
         if (WordRenderer.IsValueCreated)
@@ -226,6 +236,15 @@ public partial class App : Application
         catch (Exception exception)
         {
             Logger.Error("Gagal memulai pemantau folder template.", exception);
+        }
+
+        try
+        {
+            await ProjectFolderWatcher.StartAsync();
+        }
+        catch (Exception exception)
+        {
+            Logger.Error("Gagal memulai pemantau folder pekerjaan.", exception);
         }
     }
 

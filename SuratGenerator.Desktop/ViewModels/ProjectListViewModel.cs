@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using SuratGenerator.Core.Models;
 using SuratGenerator.Core.Services;
+using SuratGenerator.Desktop.Messages;
 using SuratGenerator.Desktop.Services;
 
 namespace SuratGenerator.Desktop.ViewModels;
@@ -17,15 +19,20 @@ internal sealed class ProjectListViewModel : ObservableObject
     private string _searchText = string.Empty;
     private string _statusMessage = string.Empty;
     private bool _isStatusSuccess;
+    private int _hiddenMissingCount;
 
     public ProjectListViewModel(IProjectStore projectStore, INavigationService navigation)
     {
         _projectStore = projectStore;
         _navigation = navigation;
         Projects = new ReadOnlyObservableCollection<ProjectInfo>(_projects);
-        RefreshCommand = new AsyncRelayCommand(LoadAsync, () => !IsLoading);
+        RefreshCommand = new AsyncRelayCommand(() => LoadAsync(), () => !IsLoading);
         CreateCommand = new RelayCommand(CreateProject, () => !IsLoading);
         OpenCommand = new RelayCommand<ProjectInfo>(OpenProject);
+
+        WeakReferenceMessenger.Default.Register<ProjectsChangedMessage>(
+            this,
+            (_, _) => _ = LoadAsync());
     }
 
     public ReadOnlyObservableCollection<ProjectInfo> Projects { get; }
@@ -49,6 +56,20 @@ internal sealed class ProjectListViewModel : ObservableObject
     }
 
     public bool HasProjects => _projects.Count > 0;
+
+    public int HiddenMissingCount
+    {
+        get => _hiddenMissingCount;
+        private set
+        {
+            if (SetProperty(ref _hiddenMissingCount, value))
+            {
+                OnPropertyChanged(nameof(HasHiddenMissing));
+            }
+        }
+    }
+
+    public bool HasHiddenMissing => HiddenMissingCount > 0;
 
     public bool IsLoading
     {
@@ -88,15 +109,19 @@ internal sealed class ProjectListViewModel : ObservableObject
         IsLoading = true;
         try
         {
-            var projects = await _projectStore.GetAllAsync();
+            var projects = await _projectStore.GetAllAsync(includeMissing: true);
             _allProjects.Clear();
-            foreach (var project in projects)
+            foreach (var project in projects.Where(project => !project.IsMissing))
             {
                 _allProjects.Add(project);
             }
 
+            HiddenMissingCount = projects.Count(project => project.IsMissing);
             ApplyFilter();
-            SetStatus($"{projects.Count} pekerjaan tersimpan.", true);
+            var status = HiddenMissingCount == 0
+                ? $"{_allProjects.Count} pekerjaan tersimpan."
+                : $"{_allProjects.Count} pekerjaan tersimpan, {HiddenMissingCount} disembunyikan karena folder hilang.";
+            SetStatus(status, true);
         }
         catch (Exception exception)
         {

@@ -53,15 +53,15 @@ Untuk memeriksa rilis self-contained, tetapkan kembali kedua variabel lalu jalan
 | Riwayat surat | Lulus | Pengujian xUnit pencatatan dokumen hasil lulus. |
 | Restart aplikasi | Perlu verifikasi manual | Belum ada bukti draft, riwayat, dan pengaturan tetap terbaca setelah restart. |
 | Resize jendela | Lulus | Uji asap mengubah jendela ke 1000x640 lalu 1200x720 tanpa galat. |
-| Penggunaan memori | Terbatas | Working set 226,6 MB pada smoke exe terpasang; ambang memori belum ditetapkan. |
+| Penggunaan memori | Terbatas | Working set 232,8 MB pada smoke exe terpasang; ambang memori belum ditetapkan. |
 | Pembersihan proses Word COM | Lulus | `WINWORD` tidak ditinggalkan berjalan setelah pengujian. |
 | Build | Lulus | 0 peringatan dan 0 galat pada build Release x64. |
-| Tes otomatis | Lulus | 89 pengujian xUnit lulus. |
+| Tes otomatis | Lulus | 91 pengujian xUnit lulus, termasuk master baru yang ditarik saat refresh, folder pekerjaan hilang, dan penghapusan metadata proyek. |
 | Backup dan restore | Lulus | `Phase8BackupTests` dan `Phase9BackupTests` memverifikasi arsip, checksum, path traversal, stage + restart, seleksi proyek, lock, error restore, dan backup harian. |
 | Navigasi UI | Lulus | Semua halaman dapat dinavigasi tanpa stderr; detail pekerjaan dapat dibuka dan kembali; Panduan memiliki marker `Fungsi Menu`, `Alur Cepat`, dan `Backup dan Restore`; Master Struktur Folder memiliki tombol `Hapus`; Pengaturan memiliki marker folder backup, `Buat Backup Sekarang`, dan `Siapkan Restore + Restart`. |
-| Scroll Pengaturan | Lulus | Uji asap menggulir Pengaturan sampai tombol `Siapkan Restore + Restart` berada di dalam area jendela (`PENGATURAN_SCROLL_OK`). |
+| Scroll Pengaturan dan Panduan | Lulus | Uji asap memakai wheel nyata pada `SettingsScrollViewer` dan `GuideScrollViewer` sampai tombol `Siapkan Restore + Restart` serta marker `Backup dan Restore` berada di dalam area jendela (`PENGATURAN_SCROLL_OK`, `PANDUAN_SCROLL_OK`). |
 | Scroll kartu Buat Surat | Lulus | Wheel di Data Surat menggeser field dari Y 514 ke 466; posisi Y tombol `Simpan Draft` tetap 810 setelah wheel di Data Surat dan di Pratinjau. |
-| Installer | Lulus | `SuratGenerator-Setup.exe` 1.0.4 dibangun dari kode terbaru, uninstall 1.0.3 dan install baru berhasil dengan exit code 0, registry `Surat Generator 1.0.4`, data pengguna dipertahankan, shortcut desktop dibuat, dan smoke lulus dari exe terpasang. SHA256: `2EAFCDD3E421F7B8E8BC3E09899288B6C5BF034E6858DFF42775C87F860538FA`. |
+| Installer | Lulus | `SuratGenerator-Setup.exe` 1.0.5 dibangun dari kode terbaru, uninstall 1.0.4 dan install baru berhasil dengan exit code 0, registry `Surat Generator 1.0.5`, data pengguna dipertahankan (28 file, hash database sama), shortcut desktop dibuat, dan smoke lulus dari exe terpasang. SHA256: `EE76F89C8DB21992CB691FD9228BB2624D6908F5D0940D99A5BD87676E5C1DBD`. |
 | Shortcut desktop | Lulus | `C:\Users\Lenovo\Desktop\Surat Generator.lnk` dibuat dan mengarah ke `C:\Users\Lenovo\AppData\Local\Programs\SuratGenerator\SuratGenerator.Desktop.exe`. |
 
 ## Lokasi Log

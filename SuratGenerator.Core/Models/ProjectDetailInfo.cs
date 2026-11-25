@@ -5,4 +5,5 @@ public sealed record ProjectDetailInfo(
     IReadOnlyList<ProjectCategoryInfo> Categories,
     IReadOnlyList<ProjectDocumentInfo> Documents,
     IReadOnlyList<ProjectFieldInfo> Fields,
-    ProjectChecklistSummary Checklist);
+    ProjectChecklistSummary Checklist,
+    IReadOnlyList<string>? Warnings = null);

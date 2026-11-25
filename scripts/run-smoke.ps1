@@ -35,6 +35,11 @@ public static class SmokeWindow {
         mouse_event(0x0002, 0, 0, 0, IntPtr.Zero);
         mouse_event(0x0004, 0, 0, 0, IntPtr.Zero);
     }
+    public static void Wheel(IntPtr hWnd, int x, int y, int delta) {
+        SetForegroundWindow(hWnd);
+        SetCursorPos(x, y);
+        mouse_event(0x0800, 0, 0, unchecked((uint)delta), IntPtr.Zero);
+    }
 }
 '@
 
@@ -75,6 +80,77 @@ function Click-Element {
 
     $rect = $Element.Current.BoundingRectangle
     [SmokeWindow]::Click($Handle, [int]($rect.X + $rect.Width / 2), [int]($rect.Y + $rect.Height / 2))
+}
+
+function Find-ElementByAutomationId {
+    param(
+        [System.Windows.Automation.AutomationElement] $Root,
+        [string] $AutomationId
+    )
+
+    $condition = New-Object System.Windows.Automation.PropertyCondition(
+        [System.Windows.Automation.AutomationElement]::AutomationIdProperty,
+        $AutomationId)
+    $matches = $Root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
+    if ($matches.Count -gt 0) {
+        return $matches[0]
+    }
+    return $null
+}
+
+function Test-ScrollToMarker {
+    param(
+        [System.Windows.Automation.AutomationElement] $Window,
+        [IntPtr] $Handle,
+        [string] $PageName,
+        [string] $ScrollViewerId,
+        [string] $Marker,
+        [System.Windows.Automation.ControlType] $MarkerControlType = [System.Windows.Automation.ControlType]::Text,
+        [int] $WheelSteps = 20
+    )
+
+    $scrollViewer = Find-ElementByAutomationId -Root $Window -AutomationId $ScrollViewerId
+    if ($null -eq $scrollViewer) {
+        $failures.Add("$PageName scroll viewer was not found: $ScrollViewerId")
+        return
+    }
+
+    foreach ($element in $scrollViewer.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
+        if ($element.Current.ControlType -ne [System.Windows.Automation.ControlType]::ScrollBar) {
+            continue
+        }
+        $range = $null
+        if ($element.TryGetCurrentPattern([System.Windows.Automation.RangeValuePattern]::Pattern, [ref]$range)) {
+            try {
+                $range.SetValue($range.Current.Minimum)
+            } catch {
+            }
+        }
+        break
+    }
+
+    $scrollRect = $scrollViewer.Current.BoundingRectangle
+    $scrollX = [int]($scrollRect.X + $scrollRect.Width / 2)
+    $scrollY = [int]($scrollRect.Y + $scrollRect.Height / 2)
+    for ($step = 0; $step -lt $WheelSteps; $step++) {
+        [SmokeWindow]::Wheel($Handle, $scrollX, $scrollY, -120)
+        Start-Sleep -Milliseconds 120
+    }
+    Start-Sleep -Milliseconds 600
+
+    $markerElement = Find-FirstElement -Root $Window -Name $Marker -ControlType $MarkerControlType
+    if ($null -eq $markerElement) {
+        $failures.Add("$PageName marker was not found after scrolling: $Marker")
+        return
+    }
+
+    $windowRect = $Window.Current.BoundingRectangle
+    $markerRect = $markerElement.Current.BoundingRectangle
+    if ($markerRect.Top -ge $windowRect.Top -and $markerRect.Bottom -le $windowRect.Bottom) {
+        Write-Host "$($PageName.ToUpperInvariant())_SCROLL_OK"
+    } else {
+        $failures.Add("$PageName scroll did not reveal marker '$Marker': marker=$($markerRect.Top)/$($markerRect.Bottom), window=$($windowRect.Top)/$($windowRect.Bottom)")
+    }
 }
 
 for ($i = 0; $i -lt 60 -and $process.MainWindowHandle -eq [IntPtr]::Zero; $i++) {
@@ -167,6 +243,7 @@ if ($process.MainWindowHandle -eq [IntPtr]::Zero) {
                     Write-Host "PANDUAN_MARKER_OK=$marker"
                 }
             }
+            Test-ScrollToMarker -Window $window -Handle $process.MainWindowHandle -PageName 'Panduan' -ScrollViewerId 'GuideScrollViewer' -Marker 'Backup dan Restore' -WheelSteps 24
         }
 
         if ($page.Name -eq 'Manajemen Pekerjaan' -and -not $process.HasExited) {
@@ -242,41 +319,7 @@ if ($process.MainWindowHandle -eq [IntPtr]::Zero) {
     }
 
     if (-not $process.HasExited) {
-        $restoreButton = Find-FirstElement -Root $window -Name 'Siapkan Restore + Restart' -ControlType ([System.Windows.Automation.ControlType]::Button)
-        if ($null -eq $restoreButton) {
-            $failures.Add('Pengaturan restore button was not found for scroll check.')
-        } else {
-            $windowRect = $window.Current.BoundingRectangle
-            $beforeRect = $restoreButton.Current.BoundingRectangle
-            $scrollBar = $null
-            foreach ($element in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)) {
-                if ($element.Current.ControlType -eq [System.Windows.Automation.ControlType]::ScrollBar) {
-                    $scrollBar = $element
-                    break
-                }
-            }
-            if ($null -eq $scrollBar) {
-                $failures.Add('Pengaturan scroll bar was not found.')
-            } else {
-                $range = $null
-                if (-not $scrollBar.TryGetCurrentPattern([System.Windows.Automation.RangeValuePattern]::Pattern, [ref]$range)) {
-                    $failures.Add('Pengaturan scroll bar range pattern was not available.')
-                } else {
-                    try {
-                        $range.SetValue($range.Current.Maximum)
-                        Start-Sleep -Milliseconds 600
-                        $afterRect = $restoreButton.Current.BoundingRectangle
-                        if ($afterRect.Top -ge $windowRect.Top -and $afterRect.Bottom -le $windowRect.Bottom) {
-                            Write-Host 'PENGATURAN_SCROLL_OK'
-                        } else {
-                            $failures.Add("Pengaturan scroll did not reveal restore button: before=$($beforeRect.Top)/$($beforeRect.Bottom), after=$($afterRect.Top)/$($afterRect.Bottom), window=$($windowRect.Top)/$($windowRect.Bottom)")
-                        }
-                    } catch {
-                        $failures.Add("Pengaturan scroll check failed: $($_.Exception.Message)")
-                    }
-                }
-            }
-        }
+        Test-ScrollToMarker -Window $window -Handle $process.MainWindowHandle -PageName 'Pengaturan' -ScrollViewerId 'SettingsScrollViewer' -Marker 'Siapkan Restore + Restart' -MarkerControlType ([System.Windows.Automation.ControlType]::Button) -WheelSteps 24
     }
 
     if (-not $process.HasExited) {

@@ -77,6 +77,14 @@ Pada halaman **Master Struktur Folder** Anda dapat:
 
 Perubahan struktur hanya berlaku untuk pekerjaan baru atau selanjutnya. Pekerjaan yang sudah dibuat tetap memakai strukturnya sendiri. Master dokumen yang memakai kategori yang dihapus tetap tersimpan, tetapi kolom kategorinya ditampilkan sebagai `-`.
 
+## Manajemen Pekerjaan
+
+- Tombol **Buat Pekerjaan** membuat folder proyek dan menyalin master dokumen aktif dari kategori yang aktif. Master yang nonaktif atau diarsipkan tidak disalin dan alasannya ditampilkan pada detail pekerjaan.
+- Tombol **Refresh Dokumen** menyelaraskan folder dengan catatan aplikasi, termasuk file yang ditambahkan langsung dari File Explorer dan master aktif baru yang belum memiliki salinan di pekerjaan.
+- Jika folder pekerjaan dihapus atau dipindahkan dari File Explorer, aplikasi menandai pekerjaan sebagai folder hilang dan menyembunyikannya dari daftar. Data aplikasi tetap tersimpan.
+- Jika folder dikembalikan ke path asal, tekan **Periksa Ulang** pada banner detail. Pekerjaan akan muncul lagi di daftar.
+- Tombol **Hapus dari Daftar** hanya menghapus catatan aplikasi untuk pekerjaan bersangkutan. Folder asli di File Explorer tidak dihapus.
+
 ## Menu Panduan
 
 Halaman **Panduan** berisi ringkasan fungsi tiap menu, alur cepat penggunaan, ringkasan backup/restore, dan pemecahan masalah. Tombol **Buka** pada tiap baris menu membuka halaman yang bersangkutan.
@@ -121,6 +129,7 @@ Token Google Drive tidak disertakan dalam arsip. Lakukan login ulang setelah res
 | Template `.doc` tidak terbaca | Pastikan Microsoft Word 2016+ terpasang dan dapat dijalankan untuk konversi. |
 | File sedang dibuka Word tidak ikut terpindai | Tutup file tersebut, lalu pindai ulang. |
 | Template hilang dari daftar | Periksa kolom Sumber. File yang dihapus dari folder tetap tersimpan sebagai salinan lokal. |
+| Pekerjaan hilang dari daftar | Periksa path folder asal. Pekerjaan dengan folder hilang disembunyikan, bukan dihapus; kembalikan folder lalu tekan **Periksa Ulang** pada detail, atau hapus data aplikasinya bila memang tidak diperlukan. |
 | Pratinjau, ekspor Word, atau cetak gagal | Pastikan Microsoft Word 2016+ terpasang dan dapat dijalankan. |
 | Backup gagal dibuat | Periksa folder backup masih dapat ditulis, tidak berada di dalam folder sumber, dan tidak mengandung folder sumber. |
 | Backup harian tidak muncul | Pastikan arsip terakhir masih ada di folder backup dan valid; arsip yang dihapus memicu backup baru saat aplikasi dibuka. |

@@ -161,6 +161,65 @@ public class Phase5ProjectDetailTests
         }
     }
 
+    [Fact]
+    public async Task RefreshMenarikMasterBaruDanMendeteksiFolderHilang()
+    {
+        var environment = CreateEnvironment();
+        try
+        {
+            using var store = environment.CreateProjectStore();
+            var project = await CreateProjectAsync(store);
+            var category = (await environment.Categories.GetAllAsync())[0];
+            var source = Path.Combine(environment.Directory, "tagihan.docx");
+            await File.WriteAllTextAsync(source, "isi tagihan");
+            var master = await environment.Masters.UploadAsync(category.Id, source, "Tagihan Baru", true);
+
+            var before = await store.GetDetailAsync(project.Id);
+            Assert.DoesNotContain(before!.Documents, document => document.MasterDocumentId == master.Id);
+
+            var refresh = await store.RefreshFilesystemAsync(project.Id, pullMissingMasters: true);
+            Assert.Contains(refresh.Changes, change => change.Action == "Master Ditarik");
+            var pulled = refresh.Detail.Documents.Single(document => document.MasterDocumentId == master.Id);
+            Assert.Equal(DocumentSources.MasterCopy, pulled.Source);
+            Assert.Equal(DocumentStatuses.Incomplete, pulled.Status);
+            Assert.True(File.Exists(await store.ResolveDocumentPathAsync(pulled.Id)));
+
+            Directory.Delete(project.RootPath, true);
+            Assert.Empty(await store.GetAllAsync());
+            var hidden = Assert.Single(await store.GetAllAsync(includeMissing: true));
+            Assert.True(hidden.IsMissing);
+
+            Directory.CreateDirectory(project.RootPath);
+            var restored = Assert.Single(await store.GetAllAsync());
+            Assert.False(restored.IsMissing);
+        }
+        finally
+        {
+            Cleanup(environment);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteAsyncMenghapusMetadataDanMenyimpanFolder()
+    {
+        var environment = CreateEnvironment();
+        try
+        {
+            using var store = environment.CreateProjectStore();
+            var project = await CreateProjectAsync(store);
+
+            Assert.True(await store.DeleteAsync(project.Id));
+            Assert.Null(await store.GetDetailAsync(project.Id));
+            Assert.Empty(await store.GetAllAsync(includeMissing: true));
+            Assert.True(Directory.Exists(project.RootPath));
+            Assert.False(await store.DeleteAsync(project.Id));
+        }
+        finally
+        {
+            Cleanup(environment);
+        }
+    }
+
     private static Func<ProjectFileCollisionInfo, CancellationToken, Task<ProjectUploadCollisionPolicy>> StaticPolicy(
         ProjectUploadCollisionPolicy policy) =>
         (_, _) => Task.FromResult(policy);

@@ -5,4 +5,6 @@ public sealed record ProjectCreationResult(
     bool IsDuplicate,
     Guid? ExistingProjectId,
     string RootPath,
-    string Message);
+    string Message,
+    IReadOnlyList<string>? Warnings = null,
+    int CopiedMasterCount = 0);

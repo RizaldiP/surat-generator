@@ -97,6 +97,8 @@ public sealed class ProjectStore : IProjectStore, IDisposable
 
         var shipName = ValidateName(request.ShipName, "Nama kapal");
         var jobName = ValidateName(request.JobName, "Nama pekerjaan");
+        var warnings = new List<string>();
+        var copiedMasterCount = 0;
         var paths = await _pathService.GetAsync(cancellationToken);
         var projectsRoot = PathSafety.NormalizeRoot(paths.ProjectsDirectory);
         Directory.CreateDirectory(projectsRoot);
@@ -112,7 +114,9 @@ public sealed class ProjectStore : IProjectStore, IDisposable
                 true,
                 duplicate.ProjectId,
                 duplicate.RootPath,
-                $"Pekerjaan dengan nama atau folder yang sama sudah ada: {duplicate.RootPath}");
+                $"Pekerjaan dengan nama atau folder yang sama sudah ada: {duplicate.RootPath}",
+                warnings,
+                0);
         }
 
         Report(progress, "Struktur", 15, "Membaca snapshot struktur dan master dokumen.");
@@ -124,6 +128,19 @@ public sealed class ProjectStore : IProjectStore, IDisposable
         var snapshotCategoryIds = snapshot.Categories
             .Select(category => category.Id)
             .ToHashSet();
+        foreach (var skipped in allMasters.Where(master => !master.IsActive || master.IsArchived))
+        {
+            var reason = skipped.IsArchived ? "diarsipkan" : "nonaktif";
+            warnings.Add($"Master '{skipped.DisplayName}' tidak disalin karena {reason}.");
+        }
+
+        foreach (var skipped in allMasters.Where(master =>
+                     master.IsActive
+                     && !master.IsArchived
+                     && !snapshotCategoryIds.Contains(master.CategoryId)))
+        {
+            warnings.Add($"Master '{skipped.DisplayName}' tidak disalin karena kategorinya tidak aktif.");
+        }
 
         var stagingPath = await _fileService.CreateStagingDirectoryAsync(
             projectsRoot,
@@ -166,6 +183,7 @@ public sealed class ProjectStore : IProjectStore, IDisposable
                         categoryFolder,
                         cancellationToken);
                     copiedMasterIds.Add(master.Id);
+                    copiedMasterCount++;
                     var copiedMetadata = await _fileService.GetFileMetadataAsync(stagingPath, relativePath, cancellationToken);
                     documentEntities.Add(new ProjectDocumentEntity
                     {
@@ -201,6 +219,8 @@ public sealed class ProjectStore : IProjectStore, IDisposable
                          && snapshotCategoryIds.Contains(master.CategoryId)))
             {
                 var targetCategory = categoryEntities.First(category => category.SourceCategoryId == required.CategoryId);
+                var requiredReason = required.IsArchived ? "diarsipkan" : required.IsActive ? "tidak tersedia" : "nonaktif";
+                warnings.Add($"Master wajib '{required.DisplayName}' belum tersalin karena {requiredReason}; file bisa ditarik lewat Refresh Dokumen.");
                 documentEntities.Add(new ProjectDocumentEntity
                 {
                     Id = Guid.NewGuid(),
@@ -212,13 +232,13 @@ public sealed class ProjectStore : IProjectStore, IDisposable
                     FilePath = string.Empty,
                     FileType = required.FileType,
                     Source = DocumentSources.MasterCopy,
-                        Status = DocumentStatuses.NotAvailable,
-                        VersionSnapshot = BuildVersionSnapshot(required.CurrentVersionNumber, required.Checksum),
-                        IsRequired = true,
-                        FileSizeBytes = 0,
-                        LastModifiedUtc = null,
-                        ImportedAt = now,
-                        UpdatedAt = now
+                    Status = DocumentStatuses.NotAvailable,
+                    VersionSnapshot = BuildVersionSnapshot(required.CurrentVersionNumber, required.Checksum),
+                    IsRequired = true,
+                    FileSizeBytes = 0,
+                    LastModifiedUtc = null,
+                    ImportedAt = now,
+                    UpdatedAt = now
                 });
             }
 
@@ -258,6 +278,7 @@ public sealed class ProjectStore : IProjectStore, IDisposable
                 RootPath = finalPath,
                 Status = ProjectStatuses.Active,
                 StructureVersion = snapshot.Version,
+                IsMissing = false,
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -284,7 +305,14 @@ public sealed class ProjectStore : IProjectStore, IDisposable
             }
 
             Report(progress, "Selesai", 100, "Pekerjaan berhasil dibuat.");
-            return new ProjectCreationResult(Map(projectEntity), false, null, finalPath, "Pekerjaan berhasil dibuat.");
+            return new ProjectCreationResult(
+                Map(projectEntity),
+                false,
+                null,
+                finalPath,
+                "Pekerjaan berhasil dibuat.",
+                warnings,
+                copiedMasterCount);
         }
         catch
         {
@@ -314,12 +342,30 @@ public sealed class ProjectStore : IProjectStore, IDisposable
         return await FindDuplicateCoreAsync(shipName, jobName, finalPath, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<ProjectInfo>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ProjectInfo>> GetAllAsync(
+        bool includeMissing = false,
+        CancellationToken cancellationToken = default)
     {
         var projects = await _dbContext.Projects
-            .AsNoTracking()
             .ToListAsync(cancellationToken);
+        var changed = false;
+        foreach (var project in projects)
+        {
+            var present = IsProjectFolderPresent(project.RootPath);
+            if (project.IsMissing == present)
+            {
+                project.IsMissing = !present;
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
         return projects
+            .Where(project => includeMissing || !project.IsMissing)
             .OrderByDescending(project => project.UpdatedAt)
             .Select(Map)
             .ToArray();
@@ -532,12 +578,37 @@ public sealed class ProjectStore : IProjectStore, IDisposable
     public async Task<ProjectRefreshResult> RefreshFilesystemAsync(
         Guid projectId,
         IProgress<ProjectCreationProgressInfo>? progress = null,
+        bool pullMissingMasters = false,
         CancellationToken cancellationToken = default)
     {
         var detail = await BuildDetailAsync(projectId, cancellationToken);
         if (detail is null)
         {
             throw new InvalidOperationException("Pekerjaan tidak ditemukan.");
+        }
+
+        if (detail.Project.IsMissing)
+        {
+            return new ProjectRefreshResult(
+                detail,
+                Array.Empty<ProjectRefreshChange>(),
+                "Folder pekerjaan tidak ditemukan; pekerjaan ditandai folder hilang.");
+        }
+
+        var masterChanges = pullMissingMasters
+            ? await PullMissingMastersAsync(projectId, progress, cancellationToken)
+            : Array.Empty<ProjectRefreshChange>();
+        if (masterChanges.Count > 0)
+        {
+            detail = await BuildDetailAsync(projectId, cancellationToken)
+                ?? throw new InvalidOperationException("Pekerjaan tidak ditemukan setelah menarik master.");
+            if (detail.Project.IsMissing)
+            {
+                return new ProjectRefreshResult(
+                    detail,
+                    masterChanges,
+                    "Folder pekerjaan tidak ditemukan; pekerjaan ditandai folder hilang.");
+            }
         }
 
         var root = PathSafety.NormalizeRoot(detail.Project.RootPath);
@@ -547,7 +618,7 @@ public sealed class ProjectStore : IProjectStore, IDisposable
                 document => document.FilePath,
                 document => document,
                 StringComparer.OrdinalIgnoreCase);
-        var changes = new List<ProjectRefreshChange>();
+        var changes = new List<ProjectRefreshChange>(masterChanges);
         var now = DateTimeOffset.UtcNow;
         var touched = false;
 
@@ -818,6 +889,53 @@ public sealed class ProjectStore : IProjectStore, IDisposable
         return Map(document);
     }
 
+    public async Task<bool> DeleteAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        var project = await _dbContext.Projects
+            .FirstOrDefaultAsync(item => item.Id == projectId, cancellationToken);
+        if (project is null)
+        {
+            return false;
+        }
+
+        using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            var documentIds = await _dbContext.ProjectDocuments
+                .Where(document => document.ProjectId == projectId)
+                .Select(document => document.Id)
+                .ToListAsync(cancellationToken);
+            var fieldValues = await _dbContext.DocumentFieldValues
+                .Where(value => documentIds.Contains(value.ProjectDocumentId))
+                .ToListAsync(cancellationToken);
+            var documents = await _dbContext.ProjectDocuments
+                .Where(document => document.ProjectId == projectId)
+                .ToListAsync(cancellationToken);
+            var categories = await _dbContext.ProjectCategories
+                .Where(category => category.ProjectId == projectId)
+                .ToListAsync(cancellationToken);
+            var fields = await _dbContext.ProjectFields
+                .Where(field => field.ProjectId == projectId)
+                .ToListAsync(cancellationToken);
+
+            _dbContext.DocumentFieldValues.RemoveRange(fieldValues);
+            _dbContext.ProjectDocuments.RemoveRange(documents);
+            _dbContext.ProjectCategories.RemoveRange(categories);
+            _dbContext.ProjectFields.RemoveRange(fields);
+            _dbContext.Projects.Remove(project);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return true;
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
     public void Dispose()
     {
         foreach (var service in _ownedServices)
@@ -826,6 +944,23 @@ public sealed class ProjectStore : IProjectStore, IDisposable
         }
 
         _dbContext.Dispose();
+    }
+
+    private bool IsProjectFolderPresent(string rootPath)
+    {
+        try
+        {
+            return Directory.Exists(PathSafety.NormalizeRoot(rootPath));
+        }
+        catch (Exception exception) when (
+            exception is IOException
+            or UnauthorizedAccessException
+            or ArgumentException
+            or NotSupportedException)
+        {
+            _logger.Warning($"Gagal memeriksa folder pekerjaan '{rootPath}'. {exception.Message}");
+            return true;
+        }
     }
 
     private async Task<ProjectEntity> GetProjectEntityAsync(
@@ -848,11 +983,17 @@ public sealed class ProjectStore : IProjectStore, IDisposable
         CancellationToken cancellationToken)
     {
         var project = await _dbContext.Projects
-            .AsNoTracking()
             .FirstOrDefaultAsync(item => item.Id == projectId, cancellationToken);
         if (project is null)
         {
             return null;
+        }
+
+        var present = IsProjectFolderPresent(project.RootPath);
+        if (project.IsMissing == present)
+        {
+            project.IsMissing = !present;
+            await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
         var categories = await _dbContext.ProjectCategories
@@ -873,6 +1014,13 @@ public sealed class ProjectStore : IProjectStore, IDisposable
             .Select(Map)
             .ToArray();
 
+        var warnings = orderedDocuments
+            .Where(document =>
+                string.Equals(document.Source, DocumentSources.MasterCopy, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(document.Status, DocumentStatuses.NotAvailable, StringComparison.OrdinalIgnoreCase))
+            .Select(document => $"Master '{document.DisplayName}' belum tersalin; klik Refresh Dokumen.")
+            .ToArray();
+
         return new ProjectDetailInfo(
             Map(project),
             categories.Select(Map).ToArray(),
@@ -881,7 +1029,8 @@ public sealed class ProjectStore : IProjectStore, IDisposable
                 .OrderBy(field => field.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(Map)
                 .ToArray(),
-            BuildChecklist(orderedDocuments));
+            BuildChecklist(orderedDocuments),
+            warnings);
     }
 
     private static ProjectChecklistSummary BuildChecklist(IReadOnlyList<ProjectDocumentInfo> documents)
@@ -928,6 +1077,13 @@ public sealed class ProjectStore : IProjectStore, IDisposable
         MasterDocumentInfo master,
         string stagingPath,
         string categoryFolder,
+        CancellationToken cancellationToken) =>
+        await CopyMasterIntoProjectAsync(master, stagingPath, categoryFolder, cancellationToken);
+
+    private async Task<string> CopyMasterIntoProjectAsync(
+        MasterDocumentInfo master,
+        string projectRoot,
+        string categoryFolder,
         CancellationToken cancellationToken)
     {
         var sourcePath = await _masterStore.ResolveOpenPathAsync(master.Id, cancellationToken);
@@ -939,9 +1095,9 @@ public sealed class ProjectStore : IProjectStore, IDisposable
             120,
             false);
         var relativePath = Path.Combine(categoryFolder, physicalName);
-        var uniqueAbsolute = await _fileService.EnsureUniquePathAsync(stagingPath, relativePath, cancellationToken);
-        var uniqueRelative = Path.GetRelativePath(stagingPath, uniqueAbsolute);
-        var copied = await _fileService.CopyAsync(sourcePath, stagingPath, uniqueRelative, false, cancellationToken);
+        var uniqueAbsolute = await _fileService.EnsureUniquePathAsync(projectRoot, relativePath, cancellationToken);
+        var uniqueRelative = Path.GetRelativePath(projectRoot, uniqueAbsolute);
+        var copied = await _fileService.CopyAsync(sourcePath, projectRoot, uniqueRelative, false, cancellationToken);
         var checksum = await _fileService.ComputeChecksumAsync(copied, cancellationToken);
         if (!string.Equals(checksum, master.Checksum, StringComparison.OrdinalIgnoreCase))
         {
@@ -949,6 +1105,138 @@ public sealed class ProjectStore : IProjectStore, IDisposable
         }
 
         return uniqueRelative;
+    }
+
+    private async Task<IReadOnlyList<ProjectRefreshChange>> PullMissingMastersAsync(
+        Guid projectId,
+        IProgress<ProjectCreationProgressInfo>? progress,
+        CancellationToken cancellationToken)
+    {
+        Report(progress, "Master", 5, "Menarik master yang belum memiliki file.");
+        var project = await GetProjectEntityAsync(projectId, cancellationToken);
+        var root = PathSafety.NormalizeRoot(project.RootPath);
+        if (!Directory.Exists(root))
+        {
+            return Array.Empty<ProjectRefreshChange>();
+        }
+
+        var categories = await _dbContext.ProjectCategories
+            .AsNoTracking()
+            .Where(category => category.ProjectId == projectId)
+            .ToListAsync(cancellationToken);
+        var categoryBySourceId = categories
+            .Where(category => category.SourceCategoryId.HasValue)
+            .ToDictionary(category => category.SourceCategoryId!.Value);
+        var documents = await _dbContext.ProjectDocuments
+            .Where(document => document.ProjectId == projectId && document.MasterDocumentId.HasValue)
+            .ToListAsync(cancellationToken);
+        var documentByMasterId = new Dictionary<Guid, ProjectDocumentEntity>();
+        foreach (var document in documents)
+        {
+            var masterId = document.MasterDocumentId;
+            if (masterId.HasValue)
+            {
+                documentByMasterId.TryAdd(masterId.Value, document);
+            }
+        }
+
+        var masters = (await _masterStore.GetAllAsync(cancellationToken))
+            .Where(master => master.IsActive && !master.IsArchived)
+            .ToArray();
+        var changes = new List<ProjectRefreshChange>();
+        var touched = false;
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var master in masters)
+        {
+            if (!categoryBySourceId.TryGetValue(master.CategoryId, out var category))
+            {
+                continue;
+            }
+
+            if (!documentByMasterId.TryGetValue(master.Id, out var document))
+            {
+                document = new ProjectDocumentEntity
+                {
+                    Id = Guid.NewGuid(),
+                    ProjectId = projectId,
+                    ProjectCategoryId = category.Id,
+                    MasterDocumentId = master.Id,
+                    MasterVersionId = master.CurrentVersionId,
+                    DisplayName = master.DisplayName,
+                    FilePath = string.Empty,
+                    FileType = master.FileType,
+                    Source = DocumentSources.MasterCopy,
+                    Status = DocumentStatuses.NotAvailable,
+                    VersionSnapshot = BuildVersionSnapshot(master.CurrentVersionNumber, master.Checksum),
+                    IsRequired = master.IsRequired,
+                    FileSizeBytes = 0,
+                    ImportedAt = now,
+                    UpdatedAt = now
+                };
+                _dbContext.ProjectDocuments.Add(document);
+                documentByMasterId.Add(master.Id, document);
+                touched = true;
+            }
+
+            var hasFile = false;
+            if (!string.IsNullOrWhiteSpace(document.FilePath))
+            {
+                try
+                {
+                    hasFile = File.Exists(await _fileService.ResolvePathAsync(root, document.FilePath, cancellationToken));
+                }
+                catch (Exception exception) when (
+                    exception is IOException
+                    or UnauthorizedAccessException
+                    or InvalidOperationException)
+                {
+                    _logger.Warning($"Gagal memeriksa file '{document.FilePath}'. {exception.Message}");
+                }
+            }
+
+            if (hasFile)
+            {
+                continue;
+            }
+
+            try
+            {
+                Directory.CreateDirectory(Path.Combine(root, category.FolderPath));
+                var relativePath = await CopyMasterIntoProjectAsync(master, root, category.FolderPath, cancellationToken);
+                var metadata = await _fileService.GetFileMetadataAsync(root, relativePath, cancellationToken);
+                document.FilePath = relativePath;
+                document.FileType = Path.GetExtension(relativePath);
+                document.MasterVersionId = master.CurrentVersionId;
+                document.VersionSnapshot = BuildVersionSnapshot(master.CurrentVersionNumber, master.Checksum);
+                document.Status = DocumentStatuses.Incomplete;
+                document.FileSizeBytes = metadata?.Length ?? master.FileSizeBytes;
+                document.LastModifiedUtc = metadata?.LastWriteTimeUtc ?? master.UpdatedAt;
+                document.UpdatedAt = now;
+                changes.Add(new ProjectRefreshChange(
+                    relativePath,
+                    "Master Ditarik",
+                    $"Master '{master.DisplayName}' berhasil disalin ke pekerjaan."));
+                touched = true;
+            }
+            catch (Exception exception) when (
+                exception is IOException
+                or UnauthorizedAccessException
+                or InvalidOperationException)
+            {
+                _logger.Warning($"Gagal menarik master '{master.DisplayName}': {exception.Message}");
+            }
+        }
+
+        if (touched)
+        {
+            await _dbContext.Projects
+                .Where(item => item.Id == projectId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.UpdatedAt, now), cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return changes;
     }
 
     private async Task<ProjectDuplicateInfo?> FindDuplicateCoreAsync(
@@ -1096,7 +1384,8 @@ public sealed class ProjectStore : IProjectStore, IDisposable
             entity.Status,
             entity.StructureVersion,
             entity.CreatedAt,
-            entity.UpdatedAt);
+            entity.UpdatedAt,
+            entity.IsMissing);
 
     private static ProjectCategoryInfo Map(ProjectCategoryEntity entity) =>
         new(

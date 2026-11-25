@@ -146,6 +146,16 @@ internal sealed class ConfirmationService : IConfirmationService
             MessageBoxResult.No) == MessageBoxResult.Yes;
     }
 
+    public bool ConfirmDeleteProject(string shipName, string jobName)
+    {
+        return MessageBox.Show(
+            $"Hapus pekerjaan '{shipName} - {jobName}' dari daftar aplikasi? Folder di File Explorer tidak dihapus dan catatan dokumen di dalamnya akan hilang dari aplikasi.",
+            "Konfirmasi Hapus Pekerjaan",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No) == MessageBoxResult.Yes;
+    }
+
     public bool ConfirmRestore(BackupPreview preview)
     {
         var lines = new List<string>

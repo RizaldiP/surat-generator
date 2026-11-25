@@ -3,8 +3,10 @@ using System.ComponentModel;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using SuratGenerator.Core.Models;
 using SuratGenerator.Core.Services;
+using SuratGenerator.Desktop.Messages;
 using SuratGenerator.Desktop.Services;
 
 namespace SuratGenerator.Desktop.ViewModels;
@@ -33,6 +35,8 @@ internal sealed class ProjectDetailViewModel : ObservableObject
     private string _progressText = string.Empty;
     private string _documentFilter = "Semua";
     private int _completedRequiredCount;
+    private bool _isFolderMissing;
+    private IReadOnlyList<string> _warnings = Array.Empty<string>();
 
     public ProjectDetailViewModel(
         IProjectStore projectStore,
@@ -57,17 +61,22 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         _documentView.Filter = FilterDocument;
         BackCommand = new RelayCommand(Back);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanOperate);
-        UploadFileCommand = new AsyncRelayCommand<ProjectCategoryRow>(UploadAsync, _ => CanOperate());
-        OpenDocumentCommand = new AsyncRelayCommand<ProjectDocumentRow>(OpenDocumentAsync, _ => CanOperate());
-        RevealDocumentCommand = new AsyncRelayCommand<ProjectDocumentRow>(RevealDocumentAsync, _ => CanOperate());
-        OpenCategoryFolderCommand = new AsyncRelayCommand<ProjectCategoryRow>(OpenCategoryFolderAsync, _ => CanOperate());
-        OpenProjectFolderCommand = new AsyncRelayCommand(OpenProjectFolderAsync, CanOperate);
+        UploadFileCommand = new AsyncRelayCommand<ProjectCategoryRow>(UploadAsync, _ => CanOperate() && !IsFolderMissing);
+        OpenDocumentCommand = new AsyncRelayCommand<ProjectDocumentRow>(OpenDocumentAsync, _ => CanOperate() && !IsFolderMissing);
+        RevealDocumentCommand = new AsyncRelayCommand<ProjectDocumentRow>(RevealDocumentAsync, _ => CanOperate() && !IsFolderMissing);
+        OpenCategoryFolderCommand = new AsyncRelayCommand<ProjectCategoryRow>(OpenCategoryFolderAsync, _ => CanOperate() && !IsFolderMissing);
+        OpenProjectFolderCommand = new AsyncRelayCommand(OpenProjectFolderAsync, () => CanOperate() && !IsFolderMissing);
         EditDocumentCommand = new RelayCommand<ProjectDocumentRow>(
             EditDocument,
-            row => CanOperate() && row?.CanEditDocument == true);
+            row => CanOperate() && !IsFolderMissing && row?.CanEditDocument == true);
         MarkCompleteCommand = new AsyncRelayCommand<ProjectDocumentRow>(
             MarkCompleteAsync,
-            row => CanOperate() && row?.CanMarkComplete == true);
+            row => CanOperate() && !IsFolderMissing && row?.CanMarkComplete == true);
+        DeleteFromListCommand = new AsyncRelayCommand(DeleteFromListAsync, () => CanOperate() && IsFolderMissing);
+
+        WeakReferenceMessenger.Default.Register<ProjectsChangedMessage>(
+            this,
+            (_, _) => _ = ReloadFromWatcherAsync());
     }
 
     public ReadOnlyObservableCollection<ProjectCategoryRow> Categories { get; }
@@ -110,6 +119,8 @@ internal sealed class ProjectDetailViewModel : ObservableObject
 
     public IAsyncRelayCommand<ProjectDocumentRow> MarkCompleteCommand { get; }
 
+    public IAsyncRelayCommand DeleteFromListCommand { get; }
+
     public ProjectInfo? Project
     {
         get => _project;
@@ -145,6 +156,35 @@ internal sealed class ProjectDetailViewModel : ObservableObject
     public bool HasProject => Project is not null;
 
     public bool HasChecklist => Checklist is not null;
+
+    public bool IsFolderMissing
+    {
+        get => _isFolderMissing;
+        private set
+        {
+            if (SetProperty(ref _isFolderMissing, value))
+            {
+                NotifyCommands();
+            }
+        }
+    }
+
+    public IReadOnlyList<string> Warnings
+    {
+        get => _warnings;
+        private set
+        {
+            if (SetProperty(ref _warnings, value))
+            {
+                OnPropertyChanged(nameof(HasWarnings));
+                OnPropertyChanged(nameof(WarningText));
+            }
+        }
+    }
+
+    public bool HasWarnings => Warnings.Count > 0;
+
+    public string WarningText => string.Join("\n", Warnings);
 
     public int CompletedRequiredCount
     {
@@ -247,9 +287,68 @@ internal sealed class ProjectDetailViewModel : ObservableObject
     {
         await RunAsync(async () =>
         {
-            var result = await _projectStore.RefreshFilesystemAsync(_projectId, CreateProgress());
+            var result = await _projectStore.RefreshFilesystemAsync(
+                _projectId,
+                CreateProgress(),
+                pullMissingMasters: true);
             ApplyDetail(result.Detail);
             SetStatus(result.Message, true);
+        });
+    }
+
+    private async Task ReloadFromWatcherAsync()
+    {
+        if (_projectId == Guid.Empty || IsBusy || IsLoading)
+        {
+            return;
+        }
+
+        try
+        {
+            var detail = await _projectStore.GetDetailAsync(_projectId);
+            if (detail is null)
+            {
+                Project = null;
+                SetStatus("Pekerjaan tidak ditemukan.", false);
+                return;
+            }
+
+            ApplyDetail(detail);
+            SetStatus(
+                detail.Project.IsMissing
+                    ? "Folder pekerjaan tidak ditemukan; pekerjaan disembunyikan dari daftar."
+                    : $"Snapshot {detail.Project.StructureVersion} dimuat ulang.",
+                !detail.Project.IsMissing);
+        }
+        catch (Exception exception)
+        {
+            SetStatus($"Gagal memuat ulang detail pekerjaan: {exception.Message}", false);
+        }
+    }
+
+    private async Task DeleteFromListAsync()
+    {
+        var project = Project;
+        if (project is null)
+        {
+            return;
+        }
+
+        if (!_confirmations.ConfirmDeleteProject(project.ShipName, project.JobName))
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            var deleted = await _projectStore.DeleteAsync(_projectId);
+            if (!deleted)
+            {
+                SetStatus("Pekerjaan sudah tidak ada.", false);
+                return;
+            }
+
+            Back();
         });
     }
 
@@ -436,6 +535,8 @@ internal sealed class ProjectDetailViewModel : ObservableObject
     {
         Project = detail.Project;
         Checklist = detail.Checklist;
+        IsFolderMissing = detail.Project.IsMissing;
+        Warnings = detail.Warnings ?? Array.Empty<string>();
         _categories.Clear();
         foreach (var category in detail.Categories)
         {
@@ -476,6 +577,7 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         OpenProjectFolderCommand.NotifyCanExecuteChanged();
         EditDocumentCommand.NotifyCanExecuteChanged();
         MarkCompleteCommand.NotifyCanExecuteChanged();
+        DeleteFromListCommand.NotifyCanExecuteChanged();
     }
 
     private void SetStatus(string message, bool success)

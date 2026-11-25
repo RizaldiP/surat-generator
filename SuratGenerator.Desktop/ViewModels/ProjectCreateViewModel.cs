@@ -234,7 +234,12 @@ internal sealed class ProjectCreateViewModel : ObservableObject
 
             if (result.Project is not null)
             {
-                SetStatus(result.Message, true);
+                var warningText = result.Warnings is { Count: > 0 }
+                    ? $" {result.Warnings.Count} master belum tersalin; lihat detail pekerjaan."
+                    : string.Empty;
+                SetStatus(
+                    $"{result.Message} {result.CopiedMasterCount} master dokumen disalin.{warningText}",
+                    true);
                 try
                 {
                     _navigation.NavigateTo<Views.Pages.ProjectDetailPage>(result.Project.Id);

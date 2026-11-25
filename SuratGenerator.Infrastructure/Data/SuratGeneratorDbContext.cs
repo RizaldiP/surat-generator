@@ -108,6 +108,7 @@ public sealed class SuratGeneratorDbContext : DbContext
             entity.Property(x => x.RootPath).IsRequired();
             entity.Property(x => x.Status).IsRequired();
             entity.Property(x => x.StructureVersion).IsRequired();
+            entity.Property(x => x.IsMissing).HasDefaultValue(false);
         });
 
         modelBuilder.Entity<ProjectFieldEntity>(entity =>

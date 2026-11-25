@@ -8,4 +8,5 @@ public sealed record ProjectInfo(
     string Status,
     string StructureVersion,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    bool IsMissing = false);

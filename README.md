@@ -78,11 +78,11 @@ $dotnet = "C:\Users\Lenovo\AppData\Local\Microsoft\dotnet\dotnet.exe"
 
 - Windows 10 Pro build 19045 x64 diuji; SDK 10.0.404 dan runtime 10.0.15.
 - Build: 0 peringatan dan 0 galat.
-- 89 pengujian xUnit lulus, termasuk backup/restore Fase 8, hardening Fase 9, duplikat proyek, dan penghapusan kategori.
-- Uji asap UI pada semua halaman lulus tanpa stderr, termasuk marker Panduan, tombol Hapus Master Struktur Folder, backup/restore, dan scroll Pengaturan.
+- 91 pengujian xUnit lulus, termasuk backup/restore Fase 8, hardening Fase 9, duplikat proyek, penghapusan kategori, master dokumen yang ditarik saat refresh, dan deteksi folder pekerjaan hilang.
+- Uji asap UI pada semua halaman lulus tanpa stderr, termasuk marker Panduan, tombol Hapus Master Struktur Folder, backup/restore, serta scroll Pengaturan dan Panduan dengan wheel nyata.
 - Proses `WINWORD` tidak ditinggalkan berjalan.
 - Windows 11 kompatibel sebagai target, tetapi belum diuji langsung pada mesin ini.
-- Installer 1.0.4 dibangun dari kode terbaru, 1.0.3 di-uninstall silent, 1.0.4 terpasang silent dengan shortcut desktop, data pengguna dipertahankan, dan smoke lulus dari exe terpasang; SHA256 `2EAFCDD3E421F7B8E8BC3E09899288B6C5BF034E6858DFF42775C87F860538FA`.
+- Installer 1.0.5 dibangun dari kode terbaru, 1.0.4 di-uninstall silent, 1.0.5 terpasang silent dengan shortcut desktop, data pengguna dipertahankan, dan smoke lulus dari exe terpasang; SHA256 `EE76F89C8DB21992CB691FD9228BB2624D6908F5D0940D99A5BD87676E5C1DBD`.
 
 Rincian dan batasannya ada di `docs/PENGUJIAN.md`.
 
