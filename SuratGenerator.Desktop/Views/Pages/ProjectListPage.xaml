@@ -1,0 +1,113 @@
+<Page x:Class="SuratGenerator.Desktop.Views.Pages.ProjectListPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:controls="clr-namespace:SuratGenerator.Desktop.Views.Controls"
+      Background="{DynamicResource AppBackgroundBrush}">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="Manajemen Pekerjaan" Style="{StaticResource AppTitleText}"/>
+            <TextBlock Margin="0,4,0,0"
+                       Text="Buat pekerjaan baru dan generate folder sesuai struktur master terkini."
+                       Style="{StaticResource AppSecondaryText}"/>
+        </StackPanel>
+
+        <Border Grid.Row="1" Style="{StaticResource AppCard}" Margin="0,16,0,12" Padding="12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <ui:TextBox Grid.Column="0"
+                            Icon="{ui:SymbolIcon Search24}"
+                            PlaceholderText="Cari kapal, pekerjaan, atau folder"
+                            Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"/>
+                <ui:Button Grid.Column="1"
+                           Margin="8,0,0,0"
+                           Command="{Binding RefreshCommand}"
+                           Content="Refresh"/>
+                <ui:Button Grid.Column="2"
+                           Margin="8,0,0,0"
+                           Command="{Binding CreateCommand}"
+                           Content="Buat Pekerjaan"
+                           Icon="{ui:SymbolIcon Add24}"
+                           Appearance="Primary"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <ListView ItemsSource="{Binding Projects}"
+                      SelectionMode="Single"
+                      Visibility="{Binding HasProjects, Converter={StaticResource AppBoolToVisibility}}">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="Kapal" Width="200" DisplayMemberBinding="{Binding ShipName}"/>
+                        <GridViewColumn Header="Pekerjaan" Width="280" DisplayMemberBinding="{Binding JobName}"/>
+                        <GridViewColumn Header="Status" Width="90" DisplayMemberBinding="{Binding Status}"/>
+                        <GridViewColumn Header="Versi Struktur" Width="120" DisplayMemberBinding="{Binding StructureVersion}"/>
+                        <GridViewColumn Header="Dibuat" Width="170" DisplayMemberBinding="{Binding CreatedAt, StringFormat=dd MMM yyyy HH:mm}"/>
+                        <GridViewColumn Header="Aksi" Width="100">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ui:Button Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
+                                               CommandParameter="{Binding}"
+                                               Content="Buka"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                    </GridView>
+                </ListView.View>
+                <ListView.InputBindings>
+                    <MouseBinding MouseAction="LeftDoubleClick"
+                                  Command="{Binding OpenCommand}"
+                                  CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"/>
+                </ListView.InputBindings>
+            </ListView>
+
+            <controls:EmptyStateControl TitleText="Belum ada pekerjaan"
+                                        MessageText="Klik Buat Pekerjaan untuk menyiapkan folder dan salinan dokumen pertama."
+                                        Glyph="FolderOpen24">
+                <controls:EmptyStateControl.Style>
+                    <Style TargetType="controls:EmptyStateControl">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding HasProjects}" Value="False"/>
+                                    <Condition Binding="{Binding IsLoading}" Value="False"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </controls:EmptyStateControl.Style>
+            </controls:EmptyStateControl>
+        </Grid>
+
+        <TextBlock Grid.Row="3"
+                   Margin="0,8,0,0"
+                   Text="{Binding StatusMessage}"
+                   Visibility="{Binding HasStatus, Converter={StaticResource AppBoolToVisibility}}">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource AppSecondaryText}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsStatusSuccess}" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource AppSuccessBrush}"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsStatusSuccess}" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource AppWarningBrush}"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+    </Grid>
+</Page>

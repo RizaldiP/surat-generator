@@ -1,0 +1,58 @@
+﻿<ui:FluentWindow x:Class="SuratGenerator.Desktop.MainWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:pages="clr-namespace:SuratGenerator.Desktop.Views.Pages"
+                  Title="Surat Generator"
+                  Icon="pack://application:,,,/SuratGenerator.Desktop;component/Resources/Icons/SuratGenerator.ico"
+                  Width="1200"
+                 Height="720"
+                 MinWidth="900"
+                 MinHeight="600"
+                 WindowStartupLocation="CenterScreen"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="Acrylic">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <ui:TitleBar Grid.Row="0" Title="Surat Generator"/>
+        <ui:NavigationView x:Name="RootNavigationView"
+                           Grid.Row="1"
+                           PaneDisplayMode="Left"
+                           IsPaneOpen="True">
+            <ui:NavigationView.MenuItems>
+                <ui:NavigationViewItem Content="Buat Surat"
+                                       Icon="{ui:SymbolIcon DocumentEdit24}"
+                                       TargetPageType="{x:Type pages:BuatSuratPage}"/>
+                <ui:NavigationViewItem Content="Template"
+                                       Icon="{ui:SymbolIcon DocumentMultiple24}"
+                                       TargetPageType="{x:Type pages:TemplatePage}"/>
+                <ui:NavigationViewItem Content="Master Struktur Folder"
+                                       Icon="{ui:SymbolIcon FolderOpen24}"
+                                       TargetPageType="{x:Type pages:MasterStructurePage}"/>
+                <ui:NavigationViewItem Content="Master Dokumen"
+                                       Icon="{ui:SymbolIcon Document24}"
+                                       TargetPageType="{x:Type pages:MasterDocumentPage}"/>
+                <ui:NavigationViewItem Content="Manajemen Pekerjaan"
+                                       Icon="{ui:SymbolIcon FolderOpen24}"
+                                       TargetPageType="{x:Type pages:ProjectListPage}"/>
+                <ui:NavigationViewItem Content="Riwayat Surat"
+                                       Icon="{ui:SymbolIcon Clock24}"
+                                       TargetPageType="{x:Type pages:RiwayatSuratPage}"/>
+                <ui:NavigationViewItem Content="Draft"
+                                       Icon="{ui:SymbolIcon FolderOpen24}"
+                                       TargetPageType="{x:Type pages:DraftPage}"/>
+            </ui:NavigationView.MenuItems>
+            <ui:NavigationView.FooterMenuItems>
+                <ui:NavigationViewItem Content="Panduan"
+                                       Icon="{ui:SymbolIcon QuestionCircle24}"
+                                       TargetPageType="{x:Type pages:PanduanPage}"/>
+                <ui:NavigationViewItem Content="Pengaturan"
+                                       Icon="{ui:SymbolIcon SettingsCogMultiple24}"
+                                       TargetPageType="{x:Type pages:PengaturanPage}"/>
+            </ui:NavigationView.FooterMenuItems>
+        </ui:NavigationView>
+    </Grid>
+</ui:FluentWindow>

@@ -1,0 +1,301 @@
+<Page x:Class="SuratGenerator.Desktop.Views.Pages.PengaturanPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Background="{DynamicResource AppBackgroundBrush}">
+    <ScrollViewer x:Name="SettingsScrollViewer"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto"
+                  CanContentScroll="False">
+        <StackPanel Margin="24,24,24,96" MaxWidth="900" HorizontalAlignment="Left" Width="860">
+            <TextBlock Text="Pengaturan Template" Style="{StaticResource AppTitleText}"/>
+            <TextBlock Margin="0,4,0,0"
+                       Text="Tentukan satu folder di komputer sebagai sumber semua template surat."
+                       Style="{StaticResource AppSecondaryText}"/>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="Folder template" Style="{StaticResource AppSectionText}"/>
+                    <TextBlock Margin="0,4,0,10"
+                               Text="Aplikasi akan membaca semua file .docx di folder ini dan menyalin salinannya ke data aplikasi. File asli tidak diubah."
+                               Style="{StaticResource AppSecondaryText}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ui:TextBox Grid.Column="0"
+                                    Icon="{ui:SymbolIcon FolderOpen24}"
+                                    PlaceholderText="Pilih folder yang berisi template .docx"
+                                    Text="{Binding FolderPath, UpdateSourceTrigger=PropertyChanged}"/>
+                        <ui:Button Grid.Column="1"
+                                   Margin="8,0,0,0"
+                                   Command="{Binding BrowseFolderCommand}"
+                                   Content="Pilih Folder"
+                                   Icon="{ui:SymbolIcon FolderOpen24}"/>
+                        <ui:Button Grid.Column="2"
+                                   Margin="8,0,0,0"
+                                   Command="{Binding SaveFolderCommand}"
+                                   Content="Simpan"
+                                   Appearance="Primary"/>
+                    </Grid>
+                    <CheckBox Margin="0,12,0,0"
+                              Content="Sertakan subfolder"
+                              IsChecked="{Binding IncludeSubfolders}"/>
+                    <TextBlock Margin="0,10,0,0"
+                               Text="{Binding FolderStatusText}"
+                               Style="{StaticResource AppBodyText}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0">
+                <StackPanel>
+                    <TextBlock Text="Pindai template" Style="{StaticResource AppSectionText}"/>
+                    <TextBlock Margin="0,4,0,10"
+                               Text="Pindai folder untuk menambah template baru, memperbarui file yang berubah, dan mendeteksi file yang sudah tidak ada."
+                               Style="{StaticResource AppSecondaryText}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <ui:Button Command="{Binding ScanFolderCommand}"
+                                   Content="Pindai Sekarang"
+                                   Icon="{ui:SymbolIcon ArrowSync24}"
+                                   Appearance="Primary"/>
+                        <TextBlock Margin="16,0,0,0"
+                                   VerticalAlignment="Center"
+                                   Text="{Binding LastScanText}"
+                                   Style="{StaticResource AppSecondaryText}"/>
+                    </StackPanel>
+                    <ProgressBar Margin="0,14,0,0"
+                                 Height="6"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 Value="{Binding ProgressPercent, Mode=OneWay}"
+                                 Visibility="{Binding HasProgress, Converter={StaticResource AppBoolToVisibility}}"/>
+                    <TextBlock Margin="0,6,0,0"
+                               Text="{Binding ProgressText}"
+                               Visibility="{Binding HasProgress, Converter={StaticResource AppBoolToVisibility}}"
+                               Style="{StaticResource AppSecondaryText}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0">
+                <StackPanel>
+                    <TextBlock Text="Lokasi Master Dokumen" Style="{StaticResource AppSectionText}"/>
+                    <TextBlock Margin="0,4,0,10"
+                               Text="Tentukan folder penyimpanan file master. Saat lokasi diubah, semua file master beserta versinya akan dipindahkan otomatis."
+                               Style="{StaticResource AppSecondaryText}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ui:TextBox Grid.Column="0"
+                                    Icon="{ui:SymbolIcon FolderOpen24}"
+                                    PlaceholderText="Pilih folder master dokumen"
+                                    Text="{Binding MasterDirectory, UpdateSourceTrigger=PropertyChanged}"/>
+                        <ui:Button Grid.Column="1"
+                                   Margin="8,0,0,0"
+                                   Command="{Binding BrowseMasterFolderCommand}"
+                                   Content="Pilih Folder Master"
+                                   Icon="{ui:SymbolIcon FolderOpen24}"/>
+                        <ui:Button Grid.Column="2"
+                                   Margin="8,0,0,0"
+                                   Command="{Binding SaveMasterFolderCommand}"
+                                   Content="Simpan Lokasi"
+                                   Appearance="Primary"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0">
+                <StackPanel>
+                    <TextBlock Text="Lokasi Hasil Pekerjaan" Style="{StaticResource AppSectionText}"/>
+                    <TextBlock Margin="0,4,0,10"
+                               Text="Tentukan folder induk untuk folder pekerjaan yang di-generate. Perubahan hanya berlaku untuk pekerjaan baru; pekerjaan lama tidak dipindahkan."
+                               Style="{StaticResource AppSecondaryText}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ui:TextBox Grid.Column="0"
+                                    Icon="{ui:SymbolIcon FolderOpen24}"
+                                    PlaceholderText="Pilih folder hasil pekerjaan"
+                                    Text="{Binding ProjectsDirectory, UpdateSourceTrigger=PropertyChanged}"/>
+                        <ui:Button Grid.Column="1"
+                                   Margin="8,0,0,0"
+                                   Command="{Binding BrowseProjectsFolderCommand}"
+                                   Content="Pilih Folder Proyek"
+                                   Icon="{ui:SymbolIcon FolderOpen24}"/>
+                        <ui:Button Grid.Column="2"
+                                   Margin="8,0,0,0"
+                                   Command="{Binding SaveProjectsFolderCommand}"
+                                   Content="Simpan Lokasi Proyek"
+                                   Appearance="Primary"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0">
+                <StackPanel>
+                    <TextBlock Text="Backup" Style="{StaticResource AppSectionText}"/>
+                    <TextBlock Margin="0,4,0,10"
+                               Text="Buat salinan database, pengaturan, template, master dokumen, dan proyek. Backup harian otomatis dibuat saat aplikasi dibuka jika belum ada backup valid dalam 24 jam."
+                               Style="{StaticResource AppSecondaryText}"/>
+                     <Grid Margin="0,0,0,10">
+                         <Grid.ColumnDefinitions>
+                             <ColumnDefinition Width="*"/>
+                             <ColumnDefinition Width="Auto"/>
+                             <ColumnDefinition Width="Auto"/>
+                         </Grid.ColumnDefinitions>
+                         <ui:TextBox Grid.Column="0"
+                                     Icon="{ui:SymbolIcon FolderOpen24}"
+                                     PlaceholderText="Pilih folder backup"
+                                     Text="{Binding BackupDirectory, UpdateSourceTrigger=PropertyChanged}"/>
+                         <ui:Button Grid.Column="1"
+                                    Margin="8,0,0,0"
+                                    Command="{Binding BrowseBackupFolderCommand}"
+                                    Content="Pilih Folder Backup"
+                                    Icon="{ui:SymbolIcon FolderOpen24}"/>
+                         <ui:Button Grid.Column="2"
+                                    Margin="8,0,0,0"
+                                    Command="{Binding SaveBackupFolderCommand}"
+                                    Content="Simpan Lokasi Backup"
+                                    Appearance="Primary"/>
+                     </Grid>
+                     <CheckBox Margin="0,10,0,0"
+                              Content="Semua proyek"
+                              IsChecked="{Binding BackupAllProjects}"/>
+                    <ItemsControl Margin="18,6,0,0"
+                                  ItemsSource="{Binding BackupProjects}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Margin="0,2,0,0"
+                                          Content="{Binding DisplayName}"
+                                          IsChecked="{Binding IsSelected}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                     <ui:Button Margin="0,10,0,0"
+                                Command="{Binding CreateBackupCommand}"
+                                Content="Buat Backup Sekarang"
+                                Icon="{ui:SymbolIcon Save24}"
+                                Appearance="Primary"/>
+                     <ProgressBar Margin="0,10,0,0"
+                                  Height="6"
+                                  Minimum="0"
+                                  Maximum="100"
+                                  Value="{Binding ProgressPercent, Mode=OneWay}"
+                                  Visibility="{Binding HasProgress, Converter={StaticResource AppBoolToVisibility}}"/>
+                     <TextBlock Margin="0,6,0,0"
+                                Text="{Binding ProgressText}"
+                                Visibility="{Binding HasProgress, Converter={StaticResource AppBoolToVisibility}}"
+                                Style="{StaticResource AppSecondaryText}"/>
+                     <TextBlock Margin="0,12,0,4"
+                               Text="Riwayat backup terakhir"
+                               Style="{StaticResource AppSectionText}"/>
+                    <ItemsControl ItemsSource="{Binding BackupHistory}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" Style="{StaticResource AppSecondaryText}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0">
+                <StackPanel>
+                    <TextBlock Text="Restore Backup" Style="{StaticResource AppSectionText}"/>
+                    <TextBlock Margin="0,4,0,10"
+                                Text="Restore disiapkan sekarang, lalu diselesaikan otomatis saat aplikasi direstart. Backup kondisi saat ini dibuat terlebih dahulu. Token Google Drive tidak disertakan; lakukan login ulang setelah restore."
+                                Style="{StaticResource AppSecondaryText}"/>
+                     <TextBlock Margin="0,0,0,8"
+                                Text="Restore sudah disiapkan. Restart aplikasi untuk menyelesaikannya."
+                                Foreground="{DynamicResource AppWarningBrush}"
+                                Visibility="{Binding HasPendingRestore, Converter={StaticResource AppBoolToVisibility}}"
+                                Style="{StaticResource AppBodyText}"/>
+                     <TextBlock Margin="0,0,0,8"
+                                Text="{Binding RestoreError, StringFormat=Restore sebelumnya gagal: {0}}"
+                                Foreground="{DynamicResource AppWarningBrush}"
+                                Visibility="{Binding HasRestoreError, Converter={StaticResource AppBoolToVisibility}}"
+                                Style="{StaticResource AppBodyText}"/>
+                     <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ui:TextBox Grid.Column="0"
+                                    Icon="{ui:SymbolIcon Archive24}"
+                                    PlaceholderText="Pilih arsip backup .zip"
+                                    Text="{Binding ArchivePath, UpdateSourceTrigger=PropertyChanged}"/>
+                        <ui:Button Grid.Column="1"
+                                   Margin="8,0,0,0"
+                                   Command="{Binding BrowseArchiveCommand}"
+                                   Content="Pilih Arsip"
+                                   Icon="{ui:SymbolIcon FolderOpen24}"/>
+                        <ui:Button Grid.Column="2"
+                                   Margin="8,0,0,0"
+                                   Command="{Binding PreviewRestoreCommand}"
+                                   Content="Periksa Arsip"
+                                   Icon="{ui:SymbolIcon DocumentSearch24}"/>
+                    </Grid>
+                    <WrapPanel Margin="0,10,0,0">
+                        <CheckBox Margin="0,0,16,0" Content="Database" IsChecked="{Binding RestoreIncludeDatabase}"/>
+                        <CheckBox Margin="0,0,16,0" Content="Pengaturan" IsChecked="{Binding RestoreIncludeConfiguration}"/>
+                        <CheckBox Margin="0,0,16,0" Content="Template" IsChecked="{Binding RestoreIncludeTemplates}"/>
+                        <CheckBox Content="Master dokumen" IsChecked="{Binding RestoreIncludeMasterDocuments}"/>
+                    </WrapPanel>
+                    <CheckBox Margin="0,10,0,0"
+                              Content="Semua proyek dalam arsip"
+                              IsChecked="{Binding RestoreAllProjects}"/>
+                    <ItemsControl Margin="18,6,0,0"
+                                  ItemsSource="{Binding RestoreProjects}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Margin="0,2,0,0"
+                                          Content="{Binding DisplayName}"
+                                          IsChecked="{Binding IsSelected}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                     <ui:Button Margin="0,12,0,0"
+                                Command="{Binding StageRestoreCommand}"
+                                Content="Siapkan Restore + Restart"
+                                Icon="{ui:SymbolIcon ArrowReset24}"
+                                Appearance="Caution"/>
+                     <ProgressBar Margin="0,10,0,0"
+                                  Height="6"
+                                  Minimum="0"
+                                  Maximum="100"
+                                  Value="{Binding ProgressPercent, Mode=OneWay}"
+                                  Visibility="{Binding HasProgress, Converter={StaticResource AppBoolToVisibility}}"/>
+                     <TextBlock Margin="0,6,0,0"
+                                Text="{Binding ProgressText}"
+                                Visibility="{Binding HasProgress, Converter={StaticResource AppBoolToVisibility}}"
+                                Style="{StaticResource AppSecondaryText}"/>
+                 </StackPanel>
+            </Border>
+
+            <TextBlock Margin="0,10,0,0"
+                       Text="{Binding StatusMessage}"
+                       Visibility="{Binding HasStatus, Converter={StaticResource AppBoolToVisibility}}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource AppBodyText}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsStatusSuccess}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource AppSuccessBrush}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsStatusSuccess}" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource AppWarningBrush}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

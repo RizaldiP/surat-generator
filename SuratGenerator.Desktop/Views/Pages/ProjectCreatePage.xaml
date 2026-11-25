@@ -1,0 +1,180 @@
+<Page x:Class="SuratGenerator.Desktop.Views.Pages.ProjectCreatePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Background="{DynamicResource AppBackgroundBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24" MaxWidth="1000" HorizontalAlignment="Left" Width="960">
+            <TextBlock Text="Buat Pekerjaan" Style="{StaticResource AppTitleText}"/>
+            <TextBlock Margin="0,4,0,0"
+                       Text="Isi profil pekerjaan, lalu generate folder dan salinan master dokumen otomatis."
+                       Style="{StaticResource AppSecondaryText}"/>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,16,0,0" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Profil Utama" Style="{StaticResource AppSectionText}"/>
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Nama kapal *" Style="{StaticResource AppBodyText}"/>
+                            <ui:TextBox Margin="0,6,0,0"
+                                        PlaceholderText="Contoh: KRI TBT - 516"
+                                        Text="{Binding ShipName, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Nama pekerjaan *" Style="{StaticResource AppBodyText}"/>
+                            <ui:TextBox Margin="0,6,0,0"
+                                        PlaceholderText="Contoh: Perbaikan Sistem Kelistrikan"
+                                        Text="{Binding JobName, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Profil Opsional" Style="{StaticResource AppSectionText}"/>
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Grid.Column="0">
+                            <TextBlock Text="Nomor kontrak" Style="{StaticResource AppBodyText}"/>
+                            <ui:TextBox Margin="0,6,0,0" Text="{Binding ContractNumber, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="0" Grid.Column="2">
+                            <TextBlock Text="Tanggal kontrak" Style="{StaticResource AppBodyText}"/>
+                            <ui:TextBox Margin="0,6,0,0"
+                                        PlaceholderText="yyyy-MM-dd"
+                                        Text="{Binding ContractDate, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,12,0,0">
+                            <TextBlock Text="Nilai pekerjaan" Style="{StaticResource AppBodyText}"/>
+                            <ui:TextBox Margin="0,6,0,0" Text="{Binding ContractValue, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,12,0,0">
+                            <TextBlock Text="Perusahaan" Style="{StaticResource AppBodyText}"/>
+                            <ui:TextBox Margin="0,6,0,0" Text="{Binding Company, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,12,0,0">
+                            <TextBlock Text="Penerima" Style="{StaticResource AppBodyText}"/>
+                            <ui:TextBox Margin="0,6,0,0" Text="{Binding Recipient, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,12,0,0">
+                            <TextBlock Text="Lokasi pekerjaan" Style="{StaticResource AppBodyText}"/>
+                            <ui:TextBox Margin="0,6,0,0" Text="{Binding WorkLocation, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,12,0,0"
+                                   Text="Lokasi output diambil dari Pengaturan → Lokasi Hasil Pekerjaan."
+                                   Style="{StaticResource AppSecondaryText}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0" Padding="16">
+                <StackPanel>
+                    <Grid>
+                        <TextBlock Text="Custom Field" Style="{StaticResource AppSectionText}"/>
+                        <ui:Button HorizontalAlignment="Right"
+                                   Command="{Binding AddCustomFieldCommand}"
+                                   Content="Tambah Field"
+                                   Icon="{ui:SymbolIcon Add24}"/>
+                    </Grid>
+                    <TextBlock Margin="0,6,0,0"
+                               Text="Field tambahan ikut disimpan pada profil pekerjaan untuk dipakai saat prefill Word."
+                               Style="{StaticResource AppSecondaryText}"/>
+                    <ListView Margin="0,12,0,0"
+                              ItemsSource="{Binding CustomFields}"
+                              MaxHeight="220">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Key" Width="260">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Key, UpdateSourceTrigger=PropertyChanged}" Width="240"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Nilai" Width="420">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="400"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Aksi" Width="100">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ui:Button Command="{Binding DataContext.RemoveCustomFieldCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
+                                                       CommandParameter="{Binding}"
+                                                       Content="Hapus"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Lokasi Output" Style="{StaticResource AppSectionText}"/>
+                    <TextBlock Margin="0,6,0,0"
+                               Text="{Binding OutputDirectory}"
+                               TextWrapping="Wrap"
+                               Style="{StaticResource AppBodyText}"/>
+                    <ProgressBar Margin="0,14,0,0"
+                                 Height="6"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 Value="{Binding ProgressPercent, Mode=OneWay}"
+                                 Visibility="{Binding HasProgress, Converter={StaticResource AppBoolToVisibility}}"/>
+                    <TextBlock Margin="0,6,0,0"
+                               Text="{Binding ProgressMessage}"
+                               Visibility="{Binding HasProgress, Converter={StaticResource AppBoolToVisibility}}"
+                               Style="{StaticResource AppSecondaryText}"/>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Margin="0,16,0,0" Orientation="Horizontal">
+                <ui:Button Command="{Binding CreateCommand}"
+                           Content="Buat &amp; Generate"
+                           Icon="{ui:SymbolIcon Add24}"
+                           Appearance="Primary"/>
+                <ui:Button Margin="8,0,0,0"
+                           Command="{Binding CancelCommand}"
+                           Content="Batal"/>
+            </StackPanel>
+
+            <TextBlock Margin="0,10,0,0"
+                       Text="{Binding StatusMessage}"
+                       Visibility="{Binding HasStatus, Converter={StaticResource AppBoolToVisibility}}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource AppSecondaryText}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsStatusSuccess}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource AppSuccessBrush}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsStatusSuccess}" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource AppWarningBrush}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

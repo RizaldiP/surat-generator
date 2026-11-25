@@ -1,0 +1,250 @@
+<Page x:Class="SuratGenerator.Desktop.Views.Pages.ProjectDocumentEditorPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:controls="clr-namespace:SuratGenerator.Desktop.Views.Controls"
+      Background="{DynamicResource AppBackgroundBrush}">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="Isi Dokumen Pekerjaan" Style="{StaticResource AppTitleText}"/>
+            <TextBlock Margin="0,4,0,0"
+                       Text="Field diisi otomatis dari profil pekerjaan. Perubahan manual hanya berlaku untuk dokumen ini sampai Anda menyimpannya ke profil."
+                       Style="{StaticResource AppSecondaryText}"/>
+        </StackPanel>
+
+        <Border Grid.Row="1" Style="{StaticResource AppCard}" Margin="0,16,0,12" Padding="12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="{Binding DocumentName}" Style="{StaticResource AppSectionText}"/>
+                    <TextBlock Margin="0,4,0,0"
+                               Text="Pratinjau mengikuti nilai field yang Anda ubah."
+                               Style="{StaticResource AppSecondaryText}"/>
+                </StackPanel>
+                <ui:Button Grid.Column="1"
+                           Command="{Binding BackCommand}"
+                           Content="Kembali"
+                           Icon="{ui:SymbolIcon ArrowLeft24}"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="4*"/>
+                <ColumnDefinition Width="6*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource AppCard}" Margin="0,0,6,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Field Dokumen" Style="{StaticResource AppSectionText}"/>
+                    <Grid Grid.Row="1" Margin="0,10,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      Visibility="{Binding HasFields, Converter={StaticResource AppBoolToVisibility}}">
+                            <ItemsControl ItemsSource="{Binding Fields}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,14">
+                                            <DockPanel Margin="0,0,0,4">
+                                                <TextBlock DockPanel.Dock="Right"
+                                                           Margin="8,0,0,0"
+                                                           Text="Manual"
+                                                           Style="{StaticResource AppSecondaryText}"
+                                                           Visibility="{Binding IsOverride, Converter={StaticResource AppBoolToVisibility}}"/>
+                                                <TextBlock Text="{Binding Label}" Style="{StaticResource AppBodyText}"/>
+                                            </DockPanel>
+                                            <ui:TextBox PlaceholderText="Isi nilai dokumen"
+                                                        Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"/>
+                                            <ui:Button Margin="0,6,0,0"
+                                                       Command="{Binding DataContext.PromoteToProfileCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                       CommandParameter="{Binding}"
+                                                       Content="Simpan ke Profil"
+                                                       Icon="{ui:SymbolIcon Save24}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        <controls:EmptyStateControl TitleText="Tidak ada field"
+                                                    MessageText="Template ini tidak memiliki placeholder Word yang dikenali."
+                                                    Glyph="DocumentText24">
+                            <controls:EmptyStateControl.Style>
+                                <Style TargetType="controls:EmptyStateControl">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasFields}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </controls:EmptyStateControl.Style>
+                        </controls:EmptyStateControl>
+                    </Grid>
+                    <TextBlock Grid.Row="2"
+                               Margin="0,8,0,0"
+                               Text="{Binding StatusMessage}"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding HasStatus, Converter={StaticResource AppBoolToVisibility}}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource AppSecondaryText}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsStatusSuccess}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource AppSuccessBrush}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsStatusSuccess}" Value="False">
+                                        <Setter Property="Foreground" Value="{DynamicResource AppWarningBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Style="{StaticResource AppCard}" Margin="6,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,8">
+                        <TextBlock Text="Pratinjau" Style="{StaticResource AppSectionText}"/>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <ui:Button Width="36"
+                                       Command="{Binding ZoomOutCommand}"
+                                       Content="−"
+                                       ToolTipService.ToolTip="Perkecil"/>
+                            <TextBlock Margin="8,0"
+                                       VerticalAlignment="Center"
+                                       Text="{Binding ZoomText}"
+                                       Style="{StaticResource AppSecondaryText}"/>
+                            <ui:Button Width="36"
+                                       Command="{Binding ZoomInCommand}"
+                                       Content="+"
+                                       ToolTipService.ToolTip="Perbesar"/>
+                            <ui:Button Margin="8,0,0,0"
+                                       Command="{Binding FitWidthCommand}"
+                                       CommandParameter="{Binding ActualWidth, ElementName=PreviewHost}"
+                                       Content="Fit"
+                                       ToolTipService.ToolTip="Sesuaikan dengan lebar"/>
+                        </StackPanel>
+                    </DockPanel>
+                    <Border x:Name="PreviewHost"
+                            Grid.Row="1"
+                            Background="{DynamicResource AppSurfaceAltBrush}"
+                            CornerRadius="8">
+                        <Grid>
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                <Grid Margin="12">
+                                    <ItemsControl ItemsSource="{Binding PreviewPages}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Margin="0,0,0,12"
+                                                        HorizontalAlignment="Center"
+                                                        Background="{DynamicResource AppSurfaceBrush}"
+                                                        CornerRadius="4">
+                                                    <Image Width="{Binding PageWidth}"
+                                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                                           Source="{Binding Image}"
+                                                           Stretch="Uniform">
+                                                        <Image.LayoutTransform>
+                                                            <ScaleTransform ScaleX="{Binding DataContext.Zoom, RelativeSource={RelativeSource AncestorType={x:Type Page}}}"
+                                                                            ScaleY="{Binding DataContext.Zoom, RelativeSource={RelativeSource AncestorType={x:Type Page}}}"/>
+                                                        </Image.LayoutTransform>
+                                                    </Image>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <controls:EmptyStateControl TitleText="Pratinjau belum tersedia"
+                                                                MessageText="Isi field untuk melihat pratinjau dokumen."
+                                                                Glyph="DocumentText24">
+                                        <controls:EmptyStateControl.Style>
+                                            <Style TargetType="controls:EmptyStateControl">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding HasPreview}" Value="False"/>
+                                                            <Condition Binding="{Binding IsPreviewLoading}" Value="False"/>
+                                                            <Condition Binding="{Binding HasPreviewError}" Value="False"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </controls:EmptyStateControl.Style>
+                                    </controls:EmptyStateControl>
+                                </Grid>
+                            </ScrollViewer>
+                            <Border Margin="12"
+                                    Padding="12"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Panel.ZIndex="1"
+                                    Background="{DynamicResource AppSurfaceBrush}"
+                                    CornerRadius="8"
+                                    Visibility="{Binding IsPreviewLoading, Converter={StaticResource AppBoolToVisibility}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ProgressBar Width="120" Height="4" IsIndeterminate="True"/>
+                                    <TextBlock Margin="8,0,0,0"
+                                               VerticalAlignment="Center"
+                                               Text="Membuat pratinjau..."
+                                               Style="{StaticResource AppSecondaryText}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Padding="20"
+                                    Panel.ZIndex="2"
+                                    Background="{DynamicResource AppSurfaceBrush}"
+                                    CornerRadius="8"
+                                    Visibility="{Binding HasPreviewError, Converter={StaticResource AppBoolToVisibility}}">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock MaxWidth="320"
+                                               Text="{Binding PreviewError}"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               Style="{StaticResource AppBodyText}"/>
+                                    <ui:Button Margin="0,12,0,0"
+                                               HorizontalAlignment="Center"
+                                               Appearance="Primary"
+                                               Command="{Binding RetryPreviewCommand}"
+                                               Content="Coba Lagi"
+                                               Icon="{ui:SymbolIcon ArrowSync24}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="3" Style="{StaticResource AppCard}" Margin="0,12,0,0" Padding="12">
+            <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                <ui:Button Command="{Binding RefreshFromProfileCommand}"
+                           Content="Perbarui dari Profil"
+                           Icon="{ui:SymbolIcon ArrowSync24}"/>
+                <ui:Button Margin="8,0,0,0"
+                           Appearance="Primary"
+                           Command="{Binding SaveCommand}"
+                           Content="Simpan Hasil"
+                           Icon="{ui:SymbolIcon Save24}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Page>

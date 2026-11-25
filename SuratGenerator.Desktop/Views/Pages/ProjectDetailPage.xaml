@@ -1,0 +1,293 @@
+<Page x:Class="SuratGenerator.Desktop.Views.Pages.ProjectDetailPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:controls="clr-namespace:SuratGenerator.Desktop.Views.Controls"
+      Background="{DynamicResource AppBackgroundBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24" MaxWidth="1200" HorizontalAlignment="Stretch">
+            <TextBlock Text="Detail Pekerjaan" Style="{StaticResource AppTitleText}"/>
+            <TextBlock Margin="0,4,0,0"
+                       Text="Kelola folder, file, dan dokumen pada pekerjaan ini. Perubahan master tidak memengaruhi salinan lama."
+                       Style="{StaticResource AppSecondaryText}"/>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,16,0,0" Padding="16"
+                    Visibility="{Binding HasProject, Converter={StaticResource AppBoolToVisibility}}">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="{Binding Project.ShipName}" Style="{StaticResource AppSectionText}"/>
+                            <TextBlock Margin="0,4,0,0" Text="{Binding Project.JobName}" Style="{StaticResource AppBodyText}"/>
+                            <TextBlock Margin="0,8,0,0" Text="{Binding Project.RootPath, StringFormat=Folder: {0}}" Style="{StaticResource AppSecondaryText}"/>
+                            <TextBlock Margin="0,4,0,0">
+                                <TextBlock.Text>
+                                    <MultiBinding StringFormat="Status: {0} • Dibuat: {1:dd MMM yyyy HH:mm} • Versi: {2}">
+                                        <Binding Path="Project.Status"/>
+                                        <Binding Path="Project.CreatedAt"/>
+                                        <Binding Path="Project.StructureVersion"/>
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                            <ui:Button Command="{Binding RefreshCommand}" Content="Refresh Dokumen"/>
+                            <ui:Button Margin="8,0,0,0" Command="{Binding OpenProjectFolderCommand}" Content="Buka Folder Proyek"/>
+                            <ui:Button Margin="8,0,0,0" Command="{Binding BackCommand}" Content="Kembali"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Margin="0,14,0,0"
+                                Visibility="{Binding HasChecklist, Converter={StaticResource AppBoolToVisibility}}">
+                        <TextBlock Text="{Binding ChecklistText}" Style="{StaticResource AppSecondaryText}"/>
+                        <ProgressBar Margin="0,8,0,0"
+                                     Height="6"
+                                     Minimum="0"
+                                     Maximum="100"
+                                     Value="{Binding Checklist.ProgressPercent, Mode=OneWay}"/>
+                    </StackPanel>
+
+                    <ProgressBar Margin="0,14,0,0"
+                                 Height="6"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 Value="{Binding ProgressPercent, Mode=OneWay}"
+                                 Visibility="{Binding HasProgress, Converter={StaticResource AppBoolToVisibility}}"/>
+                    <TextBlock Margin="0,6,0,0"
+                               Text="{Binding ProgressText}"
+                               Visibility="{Binding HasProgress, Converter={StaticResource AppBoolToVisibility}}"
+                               Style="{StaticResource AppSecondaryText}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Kategori Hasil Generate" Style="{StaticResource AppSectionText}"/>
+                    <ListView Margin="0,12,0,0"
+                              ItemsSource="{Binding Categories}"
+                              MaxHeight="300"
+                              Visibility="{Binding HasCategories, Converter={StaticResource AppBoolToVisibility}}">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="No" Width="60" DisplayMemberBinding="{Binding SortOrder, StringFormat=00}"/>
+                                <GridViewColumn Header="Nama Folder" Width="260" DisplayMemberBinding="{Binding Name}"/>
+                                <GridViewColumn Header="Path Relatif" Width="320">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding FolderPath}" TextTrimming="CharacterEllipsis"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Aksi" Width="250">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <ui:Button Command="{Binding DataContext.UploadFileCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
+                                                           CommandParameter="{Binding}"
+                                                           Content="Unggah File"/>
+                                                <ui:Button Margin="8,0,0,0"
+                                                           Command="{Binding DataContext.OpenCategoryFolderCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
+                                                           CommandParameter="{Binding}"
+                                                           Content="Buka Folder"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                    <controls:EmptyStateControl TitleText="Belum ada kategori"
+                                                MessageText="Snapshot kategori akan tampil setelah pekerjaan dibuat."
+                                                Glyph="FolderOpen24">
+                        <controls:EmptyStateControl.Style>
+                            <Style TargetType="controls:EmptyStateControl">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding HasCategories}" Value="False"/>
+                                            <Condition Binding="{Binding IsLoading}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </controls:EmptyStateControl.Style>
+                    </controls:EmptyStateControl>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Dokumen Pekerjaan" Style="{StaticResource AppSectionText}"/>
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock VerticalAlignment="Center"
+                                   Text="Tampilkan"
+                                   Style="{StaticResource AppSecondaryText}"/>
+                        <ComboBox Grid.Column="1"
+                                  Margin="8,0,0,0"
+                                  MinWidth="150"
+                                  ItemsSource="{Binding DocumentFilters}"
+                                  SelectedItem="{Binding DocumentFilter}"/>
+                        <TextBlock Grid.Column="2"
+                                   Margin="12,0,0,0"
+                                   VerticalAlignment="Center"
+                                   Text="{Binding CompletedRequiredCount, StringFormat='Wajib selesai: {0}'}"
+                                   Style="{StaticResource AppSecondaryText}"/>
+                    </Grid>
+                    <ListView Margin="0,12,0,0"
+                              ItemsSource="{Binding DocumentsView}"
+                              MaxHeight="360"
+                              Visibility="{Binding HasDocuments, Converter={StaticResource AppBoolToVisibility}}">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Nama" Width="220" DisplayMemberBinding="{Binding DisplayName}"/>
+                                <GridViewColumn Header="Wajib" Width="70">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock HorizontalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="Tidak"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRequired}" Value="True">
+                                                                <Setter Property="Text" Value="Ya"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource AppSuccessBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Sumber" Width="130" DisplayMemberBinding="{Binding Source}"/>
+                                <GridViewColumn Header="Status" Width="140" DisplayMemberBinding="{Binding Status}"/>
+                                <GridViewColumn Header="Tipe" Width="70" DisplayMemberBinding="{Binding FileType}"/>
+                                <GridViewColumn Header="Ukuran" Width="90" DisplayMemberBinding="{Binding SizeText}"/>
+                                <GridViewColumn Header="Diubah" Width="140" DisplayMemberBinding="{Binding ModifiedText}"/>
+                                <GridViewColumn Header="Aksi" Width="410">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <ui:Button Command="{Binding DataContext.EditDocumentCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
+                                                           CommandParameter="{Binding}"
+                                                           Content="Isi Dokumen"
+                                                           ToolTipService.ToolTip="Isi placeholder Word dengan profil pekerjaan"
+                                                           Visibility="{Binding CanEditDocument, Converter={StaticResource AppBoolToVisibility}}"/>
+                                                 <ui:Button Margin="8,0,0,0"
+                                                            Command="{Binding DataContext.MarkCompleteCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
+                                                            CommandParameter="{Binding}"
+                                                            Content="Tandai Selesai"
+                                                            Appearance="Primary"
+                                                            Visibility="{Binding CanMarkComplete, Converter={StaticResource AppBoolToVisibility}}"/>
+                                                 <ui:Button Margin="8,0,0,0"
+                                                            Command="{Binding DataContext.OpenDocumentCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
+                                                           CommandParameter="{Binding}"
+                                                           Content="Buka">
+                                                    <ui:Button.Style>
+                                                        <Style TargetType="ui:Button">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasFile}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ui:Button.Style>
+                                                </ui:Button>
+                                                <ui:Button Margin="8,0,0,0"
+                                                           Command="{Binding DataContext.RevealDocumentCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
+                                                           CommandParameter="{Binding}"
+                                                           Content="Folder">
+                                                    <ui:Button.Style>
+                                                        <Style TargetType="ui:Button">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasFile}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ui:Button.Style>
+                                                </ui:Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Path" Width="320">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding FilePath}" TextTrimming="CharacterEllipsis"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                    <controls:EmptyStateControl TitleText="Belum ada dokumen"
+                                                MessageText="Salinan master akan tampil di sini setelah pekerjaan dibuat."
+                                                Glyph="Document24">
+                        <controls:EmptyStateControl.Style>
+                            <Style TargetType="controls:EmptyStateControl">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding HasDocuments}" Value="False"/>
+                                            <Condition Binding="{Binding IsLoading}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </controls:EmptyStateControl.Style>
+                    </controls:EmptyStateControl>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Field Profil" Style="{StaticResource AppSectionText}"/>
+                    <ListView Margin="0,12,0,0"
+                              ItemsSource="{Binding Fields}"
+                              MaxHeight="260"
+                              Visibility="{Binding HasFields, Converter={StaticResource AppBoolToVisibility}}">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Key" Width="260" DisplayMemberBinding="{Binding Key}"/>
+                                <GridViewColumn Header="Nilai" Width="260" DisplayMemberBinding="{Binding Value}"/>
+                                <GridViewColumn Header="Tipe" Width="120" DisplayMemberBinding="{Binding FieldType}"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Margin="0,10,0,0"
+                       Text="{Binding StatusMessage}"
+                       Visibility="{Binding HasStatus, Converter={StaticResource AppBoolToVisibility}}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource AppSecondaryText}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsStatusSuccess}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource AppSuccessBrush}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsStatusSuccess}" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource AppWarningBrush}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

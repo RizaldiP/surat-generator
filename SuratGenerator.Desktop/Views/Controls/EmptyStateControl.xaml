@@ -1,0 +1,24 @@
+<UserControl x:Class="SuratGenerator.Desktop.Views.Controls.EmptyStateControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:controls="clr-namespace:SuratGenerator.Desktop.Views.Controls"
+             Background="Transparent">
+    <Border Style="{StaticResource AppCard}" Padding="32">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <ui:SymbolIcon Symbol="{Binding Glyph, RelativeSource={RelativeSource AncestorType={x:Type controls:EmptyStateControl}}}"
+                           FontSize="40"
+                           Foreground="{DynamicResource AppPrimaryBrush}"
+                           HorizontalAlignment="Center"/>
+            <TextBlock Text="{Binding TitleText, RelativeSource={RelativeSource AncestorType={x:Type controls:EmptyStateControl}}}"
+                       Style="{StaticResource AppSectionText}"
+                       HorizontalAlignment="Center"
+                       Margin="0,16,0,0"/>
+            <TextBlock Text="{Binding MessageText, RelativeSource={RelativeSource AncestorType={x:Type controls:EmptyStateControl}}}"
+                       Style="{StaticResource AppSecondaryText}"
+                       TextAlignment="Center"
+                       HorizontalAlignment="Center"
+                       Margin="0,8,0,0"/>
+        </StackPanel>
+    </Border>
+</UserControl>

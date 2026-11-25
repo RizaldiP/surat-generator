@@ -1,0 +1,95 @@
+<Page x:Class="SuratGenerator.Desktop.Views.Pages.PanduanPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Background="{DynamicResource AppBackgroundBrush}">
+    <ScrollViewer x:Name="GuideScrollViewer"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto"
+                  CanContentScroll="False">
+        <StackPanel Margin="24,24,24,96" MaxWidth="1080" HorizontalAlignment="Left" Width="1000">
+            <TextBlock Text="Panduan Aplikasi" Style="{StaticResource AppTitleText}"/>
+            <TextBlock Margin="0,4,0,0"
+                       Text="Ringkasan fungsi tiap menu, alur kerja, backup/restore, dan pertolongan cepat."
+                       Style="{StaticResource AppSecondaryText}"/>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,16,0,0" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Fungsi Menu" Style="{StaticResource AppSectionText}"/>
+                    <ItemsControl Margin="0,12,0,0" ItemsSource="{Binding MenuItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource AppCard}" Margin="0,0,0,8" Padding="12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="220"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Name}" Style="{StaticResource AppSectionText}"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Margin="12,0,0,0"
+                                                   Text="{Binding Description}"
+                                                   TextWrapping="Wrap"
+                                                   Style="{StaticResource AppBodyText}"/>
+                                        <ui:Button Grid.Column="2"
+                                                   Margin="12,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   Command="{Binding DataContext.OpenPageCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                   CommandParameter="{Binding}"
+                                                   Content="Buka"
+                                                   Appearance="Primary"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Alur Cepat" Style="{StaticResource AppSectionText}"/>
+                    <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Style="{StaticResource AppBodyText}"
+                               Text="1. Buka Pengaturan, pilih folder template .docx/.doc, lalu simpan."/>
+                    <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource AppBodyText}"
+                               Text="2. Buka Buat Surat, pilih template hasil pindai, lalu isi field yang terdeteksi otomatis."/>
+                    <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource AppBodyText}"
+                               Text="3. Periksa pratinjau, lalu simpan draft, ekspor, atau cetak."/>
+                    <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource AppBodyText}"
+                               Text="4. Untuk pekerjaan baru, buka Manajemen Pekerjaan, tekan Buat Pekerjaan, lalu kelola dokumen pada detail pekerjaan."/>
+                    <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Style="{StaticResource AppSecondaryText}"
+                               Text="Seluruh alur bekerja tanpa internet. Microsoft Word 2016+ diperlukan untuk pratinjau PDF, ekspor Word, dan cetak."/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Backup dan Restore" Style="{StaticResource AppSectionText}"/>
+                    <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Style="{StaticResource AppBodyText}"
+                               Text="Buka Pengaturan → Backup, pilih dan simpan folder backup, lalu tekan Buat Backup Sekarang. Backup harian otomatis dibuat saat aplikasi dibuka bila belum ada backup valid dalam 24 jam."/>
+                    <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource AppBodyText}"
+                               Text="Untuk memulihkan, buka Pengaturan → Restore Backup, pilih arsip .zip, tekan Periksa Arsip, pilih komponen/proyek, lalu Siapkan Restore + Restart."/>
+                    <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource AppBodyText}"
+                               Text="Aplikasi membuat backup kondisi saat ini terlebih dahulu dan memulihkan otomatis setelah restart. Token Google Drive tidak ikut backup; lakukan login ulang setelah restore."/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource AppCard}" Margin="0,12,0,0" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Pemecahan Masalah" Style="{StaticResource AppSectionText}"/>
+                    <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Style="{StaticResource AppBodyText}"
+                               Text="Template kosong → periksa folder di Pengaturan, lalu Pindai Sekarang."/>
+                    <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource AppBodyText}"
+                               Text="Pratinjau/ekspor/cetak gagal → pastikan Microsoft Word 2016+ terpasang dan template valid."/>
+                    <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource AppBodyText}"
+                               Text="Backup gagal → periksa folder backup dapat ditulis dan tidak berada di dalam atau mengandung folder sumber."/>
+                    <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource AppBodyText}"
+                               Text="Tombol restore tidak aktif → pilih arsip lalu Periksa Arsip terlebih dahulu."/>
+                    <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource AppSecondaryText}"
+                               Text="Detail kesalahan dapat dilihat di %LOCALAPPDATA%\SuratGenerator\Logs\surat-generator.log."/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
