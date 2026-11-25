@@ -220,9 +220,191 @@ public class Phase5ProjectDetailTests
         }
     }
 
+    [Fact]
+    public async Task RefreshMengadopsiFileExistingDanTidakMenyalinDuplikat()
+    {
+        var environment = CreateEnvironment();
+        try
+        {
+            var category = (await environment.Categories.GetAllAsync())[0];
+            var source = Path.Combine(environment.Directory, "adopsi.docx");
+            await File.WriteAllTextAsync(source, "isi master");
+            var master = await environment.Masters.UploadAsync(category.Id, source, "Adopsi Master", true);
+            await environment.Masters.SetActiveAsync(master.Id, false);
+
+            using var store = environment.CreateProjectStore();
+            var project = await CreateProjectAsync(store);
+            var detailBefore = await store.GetDetailAsync(project.Id);
+            Assert.Empty(detailBefore!.Warnings ?? []);
+
+            var categoryPath = await store.ResolveCategoryPathAsync(detailBefore.Categories[0].Id);
+            var canonicalPath = Path.Combine(categoryPath, "adopsi.docx");
+            await File.WriteAllTextAsync(canonicalPath, "isi manual");
+            await environment.Masters.SetActiveAsync(master.Id, true);
+
+            var refresh = await store.RefreshFilesystemAsync(project.Id, pullMissingMasters: true);
+            Assert.Contains(refresh.Changes, change => change.Action == "Master Diadopsi");
+            var adopted = Assert.Single(refresh.Detail.Documents, document => document.MasterDocumentId == master.Id);
+            Assert.EndsWith("adopsi.docx", adopted.FilePath, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(DocumentStatuses.Incomplete, adopted.Status);
+            Assert.Equal("isi manual", await File.ReadAllTextAsync(await store.ResolveDocumentPathAsync(adopted.Id)));
+            Assert.Empty(Directory.GetFiles(categoryPath, "*adopsi (2)*"));
+            Assert.Empty(refresh.Detail.Warnings ?? []);
+
+            var fileCount = Directory.GetFiles(categoryPath).Length;
+            var secondRefresh = await store.RefreshFilesystemAsync(project.Id, pullMissingMasters: true);
+            Assert.DoesNotContain(secondRefresh.Changes, change => change.Action is "Master Diadopsi" or "Master Ditarik");
+            Assert.Equal(fileCount, Directory.GetFiles(categoryPath).Length);
+        }
+        finally
+        {
+            Cleanup(environment);
+        }
+    }
+
+    [Fact]
+    public async Task RefreshMenghapusSalinanMasterIdentikYangBertumpuk()
+    {
+        var environment = CreateEnvironment();
+        try
+        {
+            var category = (await environment.Categories.GetAllAsync())[0];
+            var source = Path.Combine(environment.Directory, "tagihan.docx");
+            await File.WriteAllTextAsync(source, "isi tagihan");
+            var master = await environment.Masters.UploadAsync(category.Id, source, "Tagihan", true);
+
+            using var store = environment.CreateProjectStore();
+            var project = await CreateProjectAsync(store);
+            var detail = await store.GetDetailAsync(project.Id);
+            var projectRoot = await store.ResolveProjectPathAsync(project.Id);
+            var original = Assert.Single(detail!.Documents, document => document.MasterDocumentId == master.Id);
+            await AddDuplicateMasterCopyAsync(environment, projectRoot, original, "tagihan (2).docx", "isi tagihan");
+            await AddDuplicateMasterCopyAsync(environment, projectRoot, original, "tagihan (3).docx", "isi tagihan");
+
+            var refresh = await store.RefreshFilesystemAsync(project.Id, pullMissingMasters: true);
+            Assert.Equal(2, refresh.Changes.Count(change => change.Action == "Duplikat Dihapus"));
+            Assert.Single(refresh.Detail.Documents, document => document.MasterDocumentId == master.Id);
+            var categoryPath = await store.ResolveCategoryPathAsync(detail.Categories[0].Id);
+            Assert.Single(Directory.GetFiles(categoryPath, "tagihan*.docx"));
+        }
+        finally
+        {
+            Cleanup(environment);
+        }
+    }
+
+    [Fact]
+    public async Task RefreshMempertahankanSalinanMasterBedaChecksumDanMemberiPeringatan()
+    {
+        var environment = CreateEnvironment();
+        try
+        {
+            var category = (await environment.Categories.GetAllAsync())[0];
+            var source = Path.Combine(environment.Directory, "izin.docx");
+            await File.WriteAllTextAsync(source, "isi master");
+            var master = await environment.Masters.UploadAsync(category.Id, source, "Izin", true);
+
+            using var store = environment.CreateProjectStore();
+            var project = await CreateProjectAsync(store);
+            var detail = await store.GetDetailAsync(project.Id);
+            var projectRoot = await store.ResolveProjectPathAsync(project.Id);
+            var original = Assert.Single(detail!.Documents, document => document.MasterDocumentId == master.Id);
+            await AddDuplicateMasterCopyAsync(environment, projectRoot, original, "izin (2).docx", "isi berbeda");
+
+            var refresh = await store.RefreshFilesystemAsync(project.Id, pullMissingMasters: true);
+            Assert.DoesNotContain(refresh.Changes, change => change.Action == "Duplikat Dihapus");
+            Assert.Equal(2, refresh.Detail.Documents.Count(document => document.MasterDocumentId == master.Id));
+            Assert.Contains(refresh.Detail.Warnings ?? [], warning => warning.Contains("isi berbeda", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Cleanup(environment);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteDocumentMenghapusFileDanCatatanSertaFieldValue()
+    {
+        var environment = CreateEnvironment();
+        try
+        {
+            var category = (await environment.Categories.GetAllAsync())[0];
+            var source = Path.Combine(environment.Directory, "hapus.docx");
+            await File.WriteAllTextAsync(source, "isi hapus");
+            await environment.Masters.UploadAsync(category.Id, source, "Hapus", true);
+
+            using var store = environment.CreateProjectStore();
+            var project = await CreateProjectAsync(store);
+            var detail = await store.GetDetailAsync(project.Id);
+            var document = detail!.Documents[0];
+            var path = await store.ResolveDocumentPathAsync(document.Id);
+            Assert.True(File.Exists(path));
+
+            using (var db = new SuratGeneratorDbContext(environment.Options))
+            {
+                db.DocumentFieldValues.Add(new DocumentFieldValueEntity
+                {
+                    Id = Guid.NewGuid(),
+                    ProjectDocumentId = document.Id,
+                    Key = "catatan",
+                    Value = "isi",
+                    UpdatedAt = DateTimeOffset.UtcNow
+                });
+                await db.SaveChangesAsync();
+            }
+
+            Assert.True(await store.DeleteDocumentAsync(document.Id));
+            Assert.False(File.Exists(path));
+            Assert.DoesNotContain((await store.GetDetailAsync(project.Id))!.Documents, item => item.Id == document.Id);
+            Assert.False(await store.DeleteDocumentAsync(document.Id));
+
+            using (var db = new SuratGeneratorDbContext(environment.Options))
+            {
+                Assert.Empty(await db.DocumentFieldValues.ToListAsync());
+            }
+        }
+        finally
+        {
+            Cleanup(environment);
+        }
+    }
+
     private static Func<ProjectFileCollisionInfo, CancellationToken, Task<ProjectUploadCollisionPolicy>> StaticPolicy(
         ProjectUploadCollisionPolicy policy) =>
         (_, _) => Task.FromResult(policy);
+
+    private static async Task AddDuplicateMasterCopyAsync(
+        TestEnvironment environment,
+        string projectRoot,
+        ProjectDocumentInfo source,
+        string fileName,
+        string content)
+    {
+        var relativePath = Path.Combine(Path.GetDirectoryName(source.FilePath)!, fileName);
+        var destination = Path.Combine(projectRoot, relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        await File.WriteAllTextAsync(destination, content);
+        using var db = new SuratGeneratorDbContext(environment.Options);
+        db.ProjectDocuments.Add(new ProjectDocumentEntity
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = source.ProjectId,
+            ProjectCategoryId = source.ProjectCategoryId,
+            MasterDocumentId = source.MasterDocumentId,
+            MasterVersionId = source.MasterVersionId,
+            DisplayName = source.DisplayName,
+            FilePath = relativePath,
+            FileType = Path.GetExtension(fileName),
+            Source = DocumentSources.MasterCopy,
+            Status = DocumentStatuses.Incomplete,
+            VersionSnapshot = source.VersionSnapshot,
+            IsRequired = source.IsRequired,
+            FileSizeBytes = content.Length,
+            ImportedAt = source.ImportedAt,
+            UpdatedAt = source.UpdatedAt
+        });
+        await db.SaveChangesAsync();
+    }
 
     private static async Task<ProjectInfo> CreateProjectAsync(ProjectStore store)
     {

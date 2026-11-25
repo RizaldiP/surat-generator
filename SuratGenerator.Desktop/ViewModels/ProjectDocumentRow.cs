@@ -4,14 +4,17 @@ namespace SuratGenerator.Desktop.ViewModels;
 
 internal sealed class ProjectDocumentRow
 {
-    public ProjectDocumentRow(ProjectDocumentInfo document)
+    public ProjectDocumentRow(ProjectDocumentInfo document, string categoryName = "")
     {
         Document = document;
+        CategoryName = categoryName;
     }
 
     public ProjectDocumentInfo Document { get; }
 
     public Guid Id => Document.Id;
+
+    public string CategoryName { get; }
 
     public string DisplayName => Document.DisplayName;
 

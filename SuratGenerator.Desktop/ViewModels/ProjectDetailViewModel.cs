@@ -59,6 +59,9 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         Fields = new ReadOnlyObservableCollection<ProjectFieldInfo>(_fields);
         _documentView = CollectionViewSource.GetDefaultView(_documents);
         _documentView.Filter = FilterDocument;
+        _documentView.GroupDescriptions.Add(new PropertyGroupDescription("CategoryName"));
+        _documentView.SortDescriptions.Add(new SortDescription("CategoryName", ListSortDirection.Ascending));
+        _documentView.SortDescriptions.Add(new SortDescription("DisplayName", ListSortDirection.Ascending));
         BackCommand = new RelayCommand(Back);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanOperate);
         UploadFileCommand = new AsyncRelayCommand<ProjectCategoryRow>(UploadAsync, _ => CanOperate() && !IsFolderMissing);
@@ -72,6 +75,9 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         MarkCompleteCommand = new AsyncRelayCommand<ProjectDocumentRow>(
             MarkCompleteAsync,
             row => CanOperate() && !IsFolderMissing && row?.CanMarkComplete == true);
+        DeleteDocumentCommand = new AsyncRelayCommand<ProjectDocumentRow>(
+            DeleteDocumentAsync,
+            row => CanOperate() && row is not null);
         DeleteFromListCommand = new AsyncRelayCommand(DeleteFromListAsync, () => CanOperate() && IsFolderMissing);
 
         WeakReferenceMessenger.Default.Register<ProjectsChangedMessage>(
@@ -118,6 +124,8 @@ internal sealed class ProjectDetailViewModel : ObservableObject
     public IRelayCommand<ProjectDocumentRow> EditDocumentCommand { get; }
 
     public IAsyncRelayCommand<ProjectDocumentRow> MarkCompleteCommand { get; }
+
+    public IAsyncRelayCommand<ProjectDocumentRow> DeleteDocumentCommand { get; }
 
     public IAsyncRelayCommand DeleteFromListCommand { get; }
 
@@ -501,6 +509,37 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         });
     }
 
+    private async Task DeleteDocumentAsync(ProjectDocumentRow? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (!_confirmations.ConfirmDeleteDocument(row.DisplayName, row.HasFile))
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            var deleted = await _projectStore.DeleteDocumentAsync(row.Id);
+            if (!deleted)
+            {
+                SetStatus("Dokumen sudah tidak ada di pekerjaan ini.", false);
+                return;
+            }
+
+            var detail = await _projectStore.GetDetailAsync(_projectId);
+            if (detail is not null)
+            {
+                ApplyDetail(detail);
+            }
+
+            SetStatus($"'{row.DisplayName}' dihapus dari pekerjaan.", true);
+        });
+    }
+
     private async Task RunAsync(Func<Task> action)
     {
         IsBusy = true;
@@ -543,10 +582,12 @@ internal sealed class ProjectDetailViewModel : ObservableObject
             _categories.Add(new ProjectCategoryRow(category));
         }
 
+        var categoryNames = detail.Categories.ToDictionary(category => category.Id, category => category.Name);
         _documents.Clear();
         foreach (var document in detail.Documents)
         {
-            _documents.Add(new ProjectDocumentRow(document));
+            var categoryName = categoryNames.TryGetValue(document.ProjectCategoryId, out var name) ? name : "-";
+            _documents.Add(new ProjectDocumentRow(document, categoryName));
         }
 
         _fields.Clear();
@@ -577,6 +618,7 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         OpenProjectFolderCommand.NotifyCanExecuteChanged();
         EditDocumentCommand.NotifyCanExecuteChanged();
         MarkCompleteCommand.NotifyCanExecuteChanged();
+        DeleteDocumentCommand.NotifyCanExecuteChanged();
         DeleteFromListCommand.NotifyCanExecuteChanged();
     }
 

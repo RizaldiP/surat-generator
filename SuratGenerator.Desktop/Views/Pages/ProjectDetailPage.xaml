@@ -182,11 +182,22 @@
                     </Grid>
                     <ListView Margin="0,12,0,0"
                               ItemsSource="{Binding DocumentsView}"
-                              MaxHeight="360"
-                              Visibility="{Binding HasDocuments, Converter={StaticResource AppBoolToVisibility}}">
+                               MaxHeight="360"
+                               Visibility="{Binding HasDocuments, Converter={StaticResource AppBoolToVisibility}}">
+                        <ListView.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Margin="4,10,4,4"
+                                                   Text="{Binding Name}"
+                                                   Style="{StaticResource AppSectionText}"/>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </ListView.GroupStyle>
                         <ListView.View>
                             <GridView>
-                                <GridViewColumn Header="Nama" Width="220" DisplayMemberBinding="{Binding DisplayName}"/>
+                                <GridViewColumn Header="Nama" Width="200" DisplayMemberBinding="{Binding DisplayName}"/>
                                 <GridViewColumn Header="Wajib" Width="70">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
@@ -211,7 +222,7 @@
                                 <GridViewColumn Header="Tipe" Width="70" DisplayMemberBinding="{Binding FileType}"/>
                                 <GridViewColumn Header="Ukuran" Width="90" DisplayMemberBinding="{Binding SizeText}"/>
                                 <GridViewColumn Header="Diubah" Width="140" DisplayMemberBinding="{Binding ModifiedText}"/>
-                                <GridViewColumn Header="Aksi" Width="410">
+                                 <GridViewColumn Header="Aksi" Width="380">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal">
@@ -254,16 +265,24 @@
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
-                                                    </ui:Button.Style>
-                                                </ui:Button>
-                                            </StackPanel>
+                                                     </ui:Button.Style>
+                                                 </ui:Button>
+                                                 <ui:Button Margin="8,0,0,0"
+                                                            AutomationProperties.AutomationId="DeleteDocumentButton"
+                                                            Command="{Binding DataContext.DeleteDocumentCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
+                                                            CommandParameter="{Binding}"
+                                                            Content="Hapus"
+                                                            ToolTipService.ToolTip="Hapus catatan dan file dokumen dari pekerjaan"/>
+                                             </StackPanel>
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
-                                <GridViewColumn Header="Path" Width="320">
+                                 <GridViewColumn Header="Path" Width="220">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding FilePath}" TextTrimming="CharacterEllipsis"/>
+                                             <TextBlock Text="{Binding FilePath}"
+                                                        TextTrimming="CharacterEllipsis"
+                                                        ToolTipService.ToolTip="{Binding FilePath}"/>
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>

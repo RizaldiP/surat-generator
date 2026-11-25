@@ -281,6 +281,12 @@ if ($process.MainWindowHandle -eq [IntPtr]::Zero) {
                         $failures.Add('Project detail marker was not found: Refresh Dokumen')
                     } else {
                         Write-Host 'PROJECT_DETAIL_MARKER_OK=Refresh Dokumen'
+                        $deleteDocumentButton = Find-ElementByAutomationId -Root $window -AutomationId 'DeleteDocumentButton'
+                        if ($null -eq $deleteDocumentButton) {
+                            $failures.Add('Project detail document delete button was not found: DeleteDocumentButton')
+                        } else {
+                            Write-Host 'DOKUMEN_HAPUS_OK'
+                        }
                         Test-ScrollToMarker -Window $window -Handle $process.MainWindowHandle -PageName 'ProjectDetail' -ScrollViewerId 'ProjectDetailScrollViewer' -Marker 'Field Profil' -WheelSteps 32 -WheelXRatio 0.01
                         Test-ScrollToMarker -Window $window -Handle $process.MainWindowHandle -PageName 'ProjectDetailBack' -ScrollViewerId 'ProjectDetailScrollViewer' -Marker 'Kembali' -MarkerControlType ([System.Windows.Automation.ControlType]::Button) -WheelSteps 1 -WheelXRatio 0.01
                         $backButton = Find-FirstElement -Root $window -Name 'Kembali' -ControlType ([System.Windows.Automation.ControlType]::Button)

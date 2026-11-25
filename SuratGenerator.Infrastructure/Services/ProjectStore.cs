@@ -889,6 +889,44 @@ public sealed class ProjectStore : IProjectStore, IDisposable
         return Map(document);
     }
 
+    public async Task<bool> DeleteDocumentAsync(
+        Guid documentId,
+        CancellationToken cancellationToken = default)
+    {
+        var document = await _dbContext.ProjectDocuments
+            .FirstOrDefaultAsync(item => item.Id == documentId, cancellationToken);
+        if (document is null)
+        {
+            return false;
+        }
+
+        var project = await _dbContext.Projects
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == document.ProjectId, cancellationToken);
+        if (project is null)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(document.FilePath) && Directory.Exists(PathSafety.NormalizeRoot(project.RootPath)))
+        {
+            await _fileService.DeleteFileAsync(project.RootPath, document.FilePath, cancellationToken);
+        }
+
+        var fieldValues = await _dbContext.DocumentFieldValues
+            .Where(value => value.ProjectDocumentId == documentId)
+            .ToListAsync(cancellationToken);
+        _dbContext.DocumentFieldValues.RemoveRange(fieldValues);
+        _dbContext.ProjectDocuments.Remove(document);
+
+        var now = DateTimeOffset.UtcNow;
+        await _dbContext.Projects
+            .Where(item => item.Id == document.ProjectId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.UpdatedAt, now), cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<bool> DeleteAsync(
         Guid projectId,
         CancellationToken cancellationToken = default)
@@ -1014,12 +1052,64 @@ public sealed class ProjectStore : IProjectStore, IDisposable
             .Select(Map)
             .ToArray();
 
+        var masters = (await _masterStore.GetAllAsync(cancellationToken))
+            .ToDictionary(master => master.Id);
+        var projectCategoryIds = categories
+            .Where(category => category.SourceCategoryId.HasValue)
+            .Select(category => category.SourceCategoryId!.Value)
+            .ToHashSet();
+        var pullableMasterIds = masters.Values
+            .Where(master => master.IsActive
+                && !master.IsArchived
+                && projectCategoryIds.Contains(master.CategoryId))
+            .Select(master => master.Id)
+            .ToHashSet();
         var warnings = orderedDocuments
             .Where(document =>
                 string.Equals(document.Source, DocumentSources.MasterCopy, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(document.Status, DocumentStatuses.NotAvailable, StringComparison.OrdinalIgnoreCase))
+                && string.Equals(document.Status, DocumentStatuses.NotAvailable, StringComparison.OrdinalIgnoreCase)
+                && document.MasterDocumentId.HasValue
+                && pullableMasterIds.Contains(document.MasterDocumentId.Value))
             .Select(document => $"Master '{document.DisplayName}' belum tersalin; klik Refresh Dokumen.")
-            .ToArray();
+            .ToList();
+
+        var root = PathSafety.NormalizeRoot(project.RootPath);
+        foreach (var group in orderedDocuments
+                     .Where(document => document.MasterDocumentId.HasValue
+                         && string.Equals(document.Source, DocumentSources.MasterCopy, StringComparison.OrdinalIgnoreCase))
+                     .GroupBy(document => document.MasterDocumentId!.Value))
+        {
+            if (group.Count() < 2 || !masters.TryGetValue(group.Key, out var master))
+            {
+                continue;
+            }
+
+            var checksums = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var document in group.Where(document => !string.IsNullOrWhiteSpace(document.FilePath)))
+            {
+                try
+                {
+                    var path = await _fileService.ResolvePathAsync(root, document.FilePath, cancellationToken);
+                    if (File.Exists(path))
+                    {
+                        checksums.Add(await _fileService.ComputeChecksumAsync(path, cancellationToken));
+                    }
+                }
+                catch (Exception exception) when (
+                    exception is IOException
+                    or UnauthorizedAccessException
+                    or InvalidOperationException
+                    or ArgumentException)
+                {
+                    _logger.Warning($"Gagal memeriksa duplikat '{document.DisplayName}'. {exception.Message}");
+                }
+            }
+
+            if (checksums.Count > 1)
+            {
+                warnings.Add($"Master '{master.DisplayName}' memiliki salinan dengan isi berbeda; periksa card dokumen.");
+            }
+        }
 
         return new ProjectDetailInfo(
             Map(project),
@@ -1087,14 +1177,7 @@ public sealed class ProjectStore : IProjectStore, IDisposable
         CancellationToken cancellationToken)
     {
         var sourcePath = await _masterStore.ResolveOpenPathAsync(master.Id, cancellationToken);
-        var physicalName = PathSafety.SanitizeName(
-            string.IsNullOrWhiteSpace(master.SourceFileName)
-                ? $"{master.DisplayName}{master.FileType}"
-                : Path.GetFileName(master.SourceFileName),
-            '_',
-            120,
-            false);
-        var relativePath = Path.Combine(categoryFolder, physicalName);
+        var relativePath = Path.Combine(categoryFolder, BuildMasterPhysicalName(master));
         var uniqueAbsolute = await _fileService.EnsureUniquePathAsync(projectRoot, relativePath, cancellationToken);
         var uniqueRelative = Path.GetRelativePath(projectRoot, uniqueAbsolute);
         var copied = await _fileService.CopyAsync(sourcePath, projectRoot, uniqueRelative, false, cancellationToken);
@@ -1128,7 +1211,7 @@ public sealed class ProjectStore : IProjectStore, IDisposable
             .Where(category => category.SourceCategoryId.HasValue)
             .ToDictionary(category => category.SourceCategoryId!.Value);
         var documents = await _dbContext.ProjectDocuments
-            .Where(document => document.ProjectId == projectId && document.MasterDocumentId.HasValue)
+            .Where(document => document.ProjectId == projectId)
             .ToListAsync(cancellationToken);
         var documentByMasterId = new Dictionary<Guid, ProjectDocumentEntity>();
         foreach (var document in documents)
@@ -1140,7 +1223,9 @@ public sealed class ProjectStore : IProjectStore, IDisposable
             }
         }
 
-        var masters = (await _masterStore.GetAllAsync(cancellationToken))
+        var allMasters = await _masterStore.GetAllAsync(cancellationToken);
+        var masterById = allMasters.ToDictionary(master => master.Id);
+        var masters = allMasters
             .Where(master => master.IsActive && !master.IsArchived)
             .ToArray();
         var changes = new List<ProjectRefreshChange>();
@@ -1175,6 +1260,7 @@ public sealed class ProjectStore : IProjectStore, IDisposable
                     UpdatedAt = now
                 };
                 _dbContext.ProjectDocuments.Add(document);
+                documents.Add(document);
                 documentByMasterId.Add(master.Id, document);
                 touched = true;
             }
@@ -1200,19 +1286,58 @@ public sealed class ProjectStore : IProjectStore, IDisposable
                 continue;
             }
 
+            var canonicalRelativePath = Path.Combine(category.FolderPath, BuildMasterPhysicalName(master));
+            var canonicalExists = false;
+            try
+            {
+                canonicalExists = File.Exists(
+                    await _fileService.ResolvePathAsync(root, canonicalRelativePath, cancellationToken));
+            }
+            catch (Exception exception) when (
+                exception is IOException
+                or UnauthorizedAccessException
+                or InvalidOperationException
+                or ArgumentException)
+            {
+                _logger.Warning($"Gagal memeriksa file '{canonicalRelativePath}'. {exception.Message}");
+            }
+
+            if (canonicalExists)
+            {
+                try
+                {
+                    document = await AdoptMasterFileAsync(
+                        master,
+                        category,
+                        document,
+                        documents,
+                        documentByMasterId,
+                        root,
+                        canonicalRelativePath,
+                        now,
+                        cancellationToken);
+                    changes.Add(new ProjectRefreshChange(
+                        canonicalRelativePath,
+                        "Master Diadopsi",
+                        $"File yang sudah ada diadopsi sebagai salinan master '{master.DisplayName}'."));
+                    touched = true;
+                    continue;
+                }
+                catch (Exception exception) when (
+                    exception is IOException
+                    or UnauthorizedAccessException
+                    or InvalidOperationException)
+                {
+                    _logger.Warning($"Gagal mengadopsi file master '{master.DisplayName}': {exception.Message}");
+                    continue;
+                }
+            }
+
             try
             {
                 Directory.CreateDirectory(Path.Combine(root, category.FolderPath));
                 var relativePath = await CopyMasterIntoProjectAsync(master, root, category.FolderPath, cancellationToken);
-                var metadata = await _fileService.GetFileMetadataAsync(root, relativePath, cancellationToken);
-                document.FilePath = relativePath;
-                document.FileType = Path.GetExtension(relativePath);
-                document.MasterVersionId = master.CurrentVersionId;
-                document.VersionSnapshot = BuildVersionSnapshot(master.CurrentVersionNumber, master.Checksum);
-                document.Status = DocumentStatuses.Incomplete;
-                document.FileSizeBytes = metadata?.Length ?? master.FileSizeBytes;
-                document.LastModifiedUtc = metadata?.LastWriteTimeUtc ?? master.UpdatedAt;
-                document.UpdatedAt = now;
+                await ApplyMasterMetadataAsync(document, master, root, relativePath, now, cancellationToken);
                 changes.Add(new ProjectRefreshChange(
                     relativePath,
                     "Master Ditarik",
@@ -1228,12 +1353,194 @@ public sealed class ProjectStore : IProjectStore, IDisposable
             }
         }
 
+        var dedupeChanges = await DeduplicateMasterCopiesAsync(
+            root,
+            documents,
+            masterById,
+            now,
+            cancellationToken);
+        if (dedupeChanges.Count > 0)
+        {
+            changes.AddRange(dedupeChanges);
+            touched = true;
+        }
+
         if (touched)
         {
             await _dbContext.Projects
                 .Where(item => item.Id == projectId)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.UpdatedAt, now), cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return changes;
+    }
+
+    private async Task<ProjectDocumentEntity> AdoptMasterFileAsync(
+        MasterDocumentInfo master,
+        ProjectCategoryEntity category,
+        ProjectDocumentEntity document,
+        List<ProjectDocumentEntity> documents,
+        Dictionary<Guid, ProjectDocumentEntity> documentByMasterId,
+        string root,
+        string relativePath,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var candidates = documents
+            .Where(candidate => candidate.Id != document.Id
+                && candidate.ProjectCategoryId == category.Id
+                && string.Equals(candidate.FilePath, relativePath, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var keeper = candidates.FirstOrDefault(candidate => candidate.MasterDocumentId == master.Id)
+            ?? candidates.FirstOrDefault(candidate => candidate.MasterDocumentId is null)
+            ?? candidates.FirstOrDefault()
+            ?? document;
+
+        foreach (var duplicate in candidates.Where(candidate => candidate.Id != keeper.Id))
+        {
+            await MergeDocumentIntoAsync(keeper, duplicate, documents, cancellationToken);
+        }
+
+        if (keeper.Id != document.Id)
+        {
+            await MergeDocumentIntoAsync(keeper, document, documents, cancellationToken);
+        }
+
+        await ApplyMasterMetadataAsync(keeper, master, root, relativePath, now, cancellationToken);
+        documentByMasterId[master.Id] = keeper;
+        return keeper;
+    }
+
+    private async Task ApplyMasterMetadataAsync(
+        ProjectDocumentEntity document,
+        MasterDocumentInfo master,
+        string root,
+        string relativePath,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var metadata = await _fileService.GetFileMetadataAsync(root, relativePath, cancellationToken);
+        document.MasterDocumentId = master.Id;
+        document.MasterVersionId = master.CurrentVersionId;
+        document.DisplayName = master.DisplayName;
+        document.FilePath = relativePath;
+        document.FileType = Path.GetExtension(relativePath);
+        document.Source = DocumentSources.MasterCopy;
+        document.Status = DocumentStatuses.Incomplete;
+        document.VersionSnapshot = BuildVersionSnapshot(master.CurrentVersionNumber, master.Checksum);
+        document.IsRequired = master.IsRequired;
+        document.FileSizeBytes = metadata?.Length ?? master.FileSizeBytes;
+        document.LastModifiedUtc = metadata?.LastWriteTimeUtc ?? master.UpdatedAt;
+        document.UpdatedAt = now;
+    }
+
+    private async Task MergeDocumentIntoAsync(
+        ProjectDocumentEntity keeper,
+        ProjectDocumentEntity duplicate,
+        List<ProjectDocumentEntity> documents,
+        CancellationToken cancellationToken)
+    {
+        if (duplicate.Id == keeper.Id)
+        {
+            return;
+        }
+
+        var values = await _dbContext.DocumentFieldValues
+            .Where(value => value.ProjectDocumentId == duplicate.Id)
+            .ToListAsync(cancellationToken);
+        var keeperKeys = (await _dbContext.DocumentFieldValues
+                .AsNoTracking()
+                .Where(value => value.ProjectDocumentId == keeper.Id)
+                .Select(value => value.Key)
+                .ToListAsync(cancellationToken))
+            .ToHashSet(StringComparer.Ordinal);
+        var conflicts = values.Where(value => keeperKeys.Contains(value.Key)).ToArray();
+        _dbContext.DocumentFieldValues.RemoveRange(conflicts);
+        foreach (var value in values.Except(conflicts))
+        {
+            value.ProjectDocumentId = keeper.Id;
+        }
+
+        _dbContext.ProjectDocuments.Remove(duplicate);
+        documents.RemoveAll(item => item.Id == duplicate.Id);
+    }
+
+    private async Task<IReadOnlyList<ProjectRefreshChange>> DeduplicateMasterCopiesAsync(
+        string root,
+        List<ProjectDocumentEntity> documents,
+        IReadOnlyDictionary<Guid, MasterDocumentInfo> masterById,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var changes = new List<ProjectRefreshChange>();
+        var groups = documents
+            .Where(document => document.MasterDocumentId.HasValue
+                && !string.IsNullOrWhiteSpace(document.FilePath))
+            .GroupBy(document => document.MasterDocumentId!.Value);
+
+        foreach (var group in groups)
+        {
+            if (group.Count() < 2 || !masterById.TryGetValue(group.Key, out var master))
+            {
+                continue;
+            }
+
+            var entries = new List<(ProjectDocumentEntity Document, string Checksum)>();
+            foreach (var document in group)
+            {
+                try
+                {
+                    var path = await _fileService.ResolvePathAsync(root, document.FilePath, cancellationToken);
+                    if (File.Exists(path))
+                    {
+                        entries.Add((document, await _fileService.ComputeChecksumAsync(path, cancellationToken)));
+                    }
+                }
+                catch (Exception exception) when (
+                    exception is IOException
+                    or UnauthorizedAccessException
+                    or InvalidOperationException
+                    or ArgumentException)
+                {
+                    _logger.Warning($"Gagal memeriksa salinan master '{document.DisplayName}'. {exception.Message}");
+                }
+            }
+
+            if (entries.Count < 2)
+            {
+                continue;
+            }
+
+            var preferredChecksum = entries
+                .FirstOrDefault(entry => string.Equals(entry.Checksum, master.Checksum, StringComparison.OrdinalIgnoreCase))
+                .Checksum
+                ?? entries
+                    .GroupBy(entry => entry.Checksum, StringComparer.OrdinalIgnoreCase)
+                    .OrderByDescending(grouping => grouping.Count())
+                    .First()
+                    .Key;
+            var preferredFileName = BuildMasterPhysicalName(master);
+            var keeper = entries
+                .Where(entry => string.Equals(entry.Checksum, preferredChecksum, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(entry => string.Equals(Path.GetFileName(entry.Document.FilePath), preferredFileName, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(entry => entry.Document.FilePath, StringComparer.OrdinalIgnoreCase)
+                .First();
+
+            var duplicates = entries
+                .Where(entry => entry.Document.Id != keeper.Document.Id
+                    && string.Equals(entry.Checksum, preferredChecksum, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            foreach (var duplicate in duplicates)
+            {
+                await _fileService.DeleteFileAsync(root, duplicate.Document.FilePath, cancellationToken);
+                await MergeDocumentIntoAsync(keeper.Document, duplicate.Document, documents, cancellationToken);
+                keeper.Document.UpdatedAt = now;
+                changes.Add(new ProjectRefreshChange(
+                    duplicate.Document.FilePath,
+                    "Duplikat Dihapus",
+                    $"Salinan duplikat master '{master.DisplayName}' dihapus karena isinya identik."));
+            }
         }
 
         return changes;
@@ -1367,6 +1674,15 @@ public sealed class ProjectStore : IProjectStore, IDisposable
 
         _logger.Warning($"Gagal menghapus folder pekerjaan hasil generate yang dibatalkan: {path}");
     }
+
+    private static string BuildMasterPhysicalName(MasterDocumentInfo master) =>
+        PathSafety.SanitizeName(
+            string.IsNullOrWhiteSpace(master.SourceFileName)
+                ? $"{master.DisplayName}{master.FileType}"
+                : Path.GetFileName(master.SourceFileName),
+            '_',
+            120,
+            false);
 
     private static bool MatchesDisplayName(string displayName, string fileName)
     {

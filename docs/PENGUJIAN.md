@@ -6,8 +6,8 @@
 - Windows 11 kompatibel sebagai target, tetapi belum diuji langsung pada mesin ini.
 - .NET SDK 10.0.404 dan runtime .NET 10.0.15 terpasang.
 - Build Release menghasilkan 0 peringatan dan 0 galat.
-- 89 pengujian xUnit lulus, termasuk backup/restore Fase 8, hardening Fase 9, duplikat proyek, dan penghapusan kategori.
-- Uji asap navigasi semua halaman lulus tanpa stderr, termasuk marker Panduan, tombol Hapus Master Struktur Folder, backup/restore, dan scroll Pengaturan.
+- 95 pengujian xUnit lulus, termasuk backup/restore Fase 8, hardening Fase 9, duplikat proyek, penghapusan kategori, adopsi dan deduplikasi master, penghapusan dokumen, dan deteksi folder pekerjaan hilang.
+- Uji asap navigasi semua halaman lulus tanpa stderr, termasuk marker Panduan, tombol Hapus Master Struktur Folder dan Hapus Dokumen, backup/restore, dan scroll Pengaturan.
 - Proses `WINWORD` tidak ditinggalkan berjalan setelah penggunaan.
 - Mode template folder lokal diuji dengan file baru, perubahan isi, penghapusan sumber, file rusak, subfolder, pemindahan nama file, dan konversi `.doc` dengan converter tiruan.
 - Backup diuji untuk arsip valid, manifest SHA256, path tidak aman, manipulasi arsip, pilihan proyek, dan backup harian.
@@ -53,15 +53,15 @@ Untuk memeriksa rilis self-contained, tetapkan kembali kedua variabel lalu jalan
 | Riwayat surat | Lulus | Pengujian xUnit pencatatan dokumen hasil lulus. |
 | Restart aplikasi | Perlu verifikasi manual | Belum ada bukti draft, riwayat, dan pengaturan tetap terbaca setelah restart. |
 | Resize jendela | Lulus | Uji asap mengubah jendela ke 1000x640 lalu 1200x720 tanpa galat. |
-| Penggunaan memori | Terbatas | Working set 237 MB pada smoke exe terpasang; ambang memori belum ditetapkan. |
+| Penggunaan memori | Terbatas | Working set 244,9 MB pada smoke exe terpasang; ambang memori belum ditetapkan. |
 | Pembersihan proses Word COM | Lulus | `WINWORD` tidak ditinggalkan berjalan setelah pengujian. |
 | Build | Lulus | 0 peringatan dan 0 galat pada build Release x64. |
-| Tes otomatis | Lulus | 91 pengujian xUnit lulus, termasuk master baru yang ditarik saat refresh, folder pekerjaan hilang, dan penghapusan metadata proyek. |
+| Tes otomatis | Lulus | 95 pengujian xUnit lulus, termasuk master baru yang ditarik saat refresh, adopsi file existing, deduplikasi salinan identik, peringatan salinan beda isi, penghapusan dokumen, folder pekerjaan hilang, dan penghapusan metadata proyek. |
 | Backup dan restore | Lulus | `Phase8BackupTests` dan `Phase9BackupTests` memverifikasi arsip, checksum, path traversal, stage + restart, seleksi proyek, lock, error restore, dan backup harian. |
-| Navigasi UI | Lulus | Semua halaman dapat dinavigasi tanpa stderr; detail pekerjaan dapat dibuka dan kembali; Panduan memiliki marker `Fungsi Menu`, `Alur Cepat`, dan `Backup dan Restore`; Master Struktur Folder memiliki tombol `Hapus`; Pengaturan memiliki marker folder backup, `Buat Backup Sekarang`, dan `Siapkan Restore + Restart`. |
+| Navigasi UI | Lulus | Semua halaman dapat dinavigasi tanpa stderr; detail pekerjaan dapat dibuka dan kembali serta memiliki tombol `Hapus` dokumen (`DOKUMEN_HAPUS_OK`); Panduan memiliki marker `Fungsi Menu`, `Alur Cepat`, dan `Backup dan Restore`; Master Struktur Folder memiliki tombol `Hapus`; Pengaturan memiliki marker folder backup, `Buat Backup Sekarang`, dan `Siapkan Restore + Restart`. |
 | Scroll Detail Pekerjaan, Pengaturan, dan Panduan | Lulus | Uji asap memakai wheel nyata pada `ProjectDetailScrollViewer`, `SettingsScrollViewer`, dan `GuideScrollViewer` sampai marker `Field Profil`, tombol `Siapkan Restore + Restart`, serta marker `Backup dan Restore` berada di dalam area jendela (`PROJECTDETAIL_SCROLL_OK`, `PENGATURAN_SCROLL_OK`, `PANDUAN_SCROLL_OK`). |
 | Scroll kartu Buat Surat | Lulus | Wheel di Data Surat menggeser field dari Y 514 ke 466; posisi Y tombol `Simpan Draft` tetap 810 setelah wheel di Data Surat dan di Pratinjau. |
-| Installer | Lulus | `SuratGenerator-Setup.exe` 1.0.6 dibangun dari kode terbaru, uninstall 1.0.5 dan install baru berhasil dengan exit code 0, registry `Surat Generator 1.0.6`, data pengguna dipertahankan (28 file, hash database sama), shortcut desktop dibuat, dan smoke lulus dari exe terpasang. SHA256: `7888BC1AE31B307DD844AEA50D22AB807E75A7D8273844881AEED3B0FCC66832`. |
+| Installer | Lulus | `SuratGenerator-Setup.exe` 1.0.7 dibangun dari kode terbaru, uninstall 1.0.6 dan install baru berhasil dengan exit code 0, registry `Surat Generator 1.0.7`, data pengguna dipertahankan (37 file, hash database `508CC271DED12B07F06AA938657C83B2E2332C5D7E1F61A4D36EB80D77CDB10B` sama sebelum/sesudah), shortcut desktop dibuat, dan smoke lulus dari exe terpasang. SHA256: `E03192ADE10E81185E0A98177B20377FB5C235FCF3A33284B64B3965072AABD4`. |
 | Shortcut desktop | Lulus | `C:\Users\Lenovo\Desktop\Surat Generator.lnk` dibuat dan mengarah ke `C:\Users\Lenovo\AppData\Local\Programs\SuratGenerator\SuratGenerator.Desktop.exe`. |
 
 ## Lokasi Log

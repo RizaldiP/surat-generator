@@ -156,6 +156,19 @@ internal sealed class ConfirmationService : IConfirmationService
             MessageBoxResult.No) == MessageBoxResult.Yes;
     }
 
+    public bool ConfirmDeleteDocument(string displayName, bool hasFile)
+    {
+        var detail = hasFile
+            ? "File di File Explorer juga akan dihapus."
+            : "Dokumen ini belum memiliki file; hanya catatannya yang dihapus.";
+        return MessageBox.Show(
+            $"Hapus dokumen '{displayName}' dari pekerjaan ini? {detail}",
+            "Konfirmasi Hapus Dokumen",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No) == MessageBoxResult.Yes;
+    }
+
     public bool ConfirmRestore(BackupPreview preview)
     {
         var lines = new List<string>

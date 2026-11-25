@@ -45,5 +45,7 @@ public interface IProjectStore
         string status,
         CancellationToken cancellationToken = default);
 
+    Task<bool> DeleteDocumentAsync(Guid documentId, CancellationToken cancellationToken = default);
+
     Task<bool> DeleteAsync(Guid projectId, CancellationToken cancellationToken = default);
 }
