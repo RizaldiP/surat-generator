@@ -177,12 +177,12 @@ public sealed class ProjectStore : IProjectStore, IDisposable
                     .ToArray();
                 foreach (var master in masters)
                 {
-                    var relativePath = await CopyMasterAsync(
+                    var (relativePath, currentMaster) = await CopyMasterAsync(
                         master,
                         stagingPath,
                         categoryFolder,
                         cancellationToken);
-                    copiedMasterIds.Add(master.Id);
+                    copiedMasterIds.Add(currentMaster.Id);
                     copiedMasterCount++;
                     var copiedMetadata = await _fileService.GetFileMetadataAsync(stagingPath, relativePath, cancellationToken);
                     documentEntities.Add(new ProjectDocumentEntity
@@ -190,17 +190,17 @@ public sealed class ProjectStore : IProjectStore, IDisposable
                         Id = Guid.NewGuid(),
                         ProjectId = projectId,
                         ProjectCategoryId = categoryEntities[^1].Id,
-                        MasterDocumentId = master.Id,
-                        MasterVersionId = master.CurrentVersionId,
-                        DisplayName = master.DisplayName,
+                        MasterDocumentId = currentMaster.Id,
+                        MasterVersionId = currentMaster.CurrentVersionId,
+                        DisplayName = currentMaster.DisplayName,
                         FilePath = relativePath,
                         FileType = Path.GetExtension(relativePath),
                         Source = DocumentSources.MasterCopy,
                         Status = DocumentStatuses.Incomplete,
-                        VersionSnapshot = BuildVersionSnapshot(master.CurrentVersionNumber, master.Checksum),
-                        IsRequired = master.IsRequired,
-                        FileSizeBytes = copiedMetadata?.Length ?? master.FileSizeBytes,
-                        LastModifiedUtc = copiedMetadata?.LastWriteTimeUtc ?? master.UpdatedAt,
+                        VersionSnapshot = BuildVersionSnapshot(currentMaster.CurrentVersionNumber, currentMaster.Checksum),
+                        IsRequired = currentMaster.IsRequired,
+                        FileSizeBytes = copiedMetadata?.Length ?? currentMaster.FileSizeBytes,
+                        LastModifiedUtc = copiedMetadata?.LastWriteTimeUtc ?? currentMaster.UpdatedAt,
                         ImportedAt = now,
                         UpdatedAt = now
                     });
@@ -1163,31 +1163,32 @@ public sealed class ProjectStore : IProjectStore, IDisposable
         }
     }
 
-    private async Task<string> CopyMasterAsync(
+    private async Task<(string RelativePath, MasterDocumentInfo Master)> CopyMasterAsync(
         MasterDocumentInfo master,
         string stagingPath,
         string categoryFolder,
         CancellationToken cancellationToken) =>
         await CopyMasterIntoProjectAsync(master, stagingPath, categoryFolder, cancellationToken);
 
-    private async Task<string> CopyMasterIntoProjectAsync(
+    private async Task<(string RelativePath, MasterDocumentInfo Master)> CopyMasterIntoProjectAsync(
         MasterDocumentInfo master,
         string projectRoot,
         string categoryFolder,
         CancellationToken cancellationToken)
     {
-        var sourcePath = await _masterStore.ResolveOpenPathAsync(master.Id, cancellationToken);
-        var relativePath = Path.Combine(categoryFolder, BuildMasterPhysicalName(master));
+        var currentMaster = await _masterStore.EnsureCurrentChecksumAsync(master.Id, cancellationToken);
+        var sourcePath = await _masterStore.ResolveOpenPathAsync(currentMaster.Id, cancellationToken);
+        var relativePath = Path.Combine(categoryFolder, BuildMasterPhysicalName(currentMaster));
         var uniqueAbsolute = await _fileService.EnsureUniquePathAsync(projectRoot, relativePath, cancellationToken);
         var uniqueRelative = Path.GetRelativePath(projectRoot, uniqueAbsolute);
         var copied = await _fileService.CopyAsync(sourcePath, projectRoot, uniqueRelative, false, cancellationToken);
         var checksum = await _fileService.ComputeChecksumAsync(copied, cancellationToken);
-        if (!string.Equals(checksum, master.Checksum, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(checksum, currentMaster.Checksum, StringComparison.OrdinalIgnoreCase))
         {
-            throw new IOException($"Checksum salinan '{master.DisplayName}' tidak cocok dengan master.");
+            throw new IOException($"Checksum salinan '{currentMaster.DisplayName}' tidak cocok dengan master.");
         }
 
-        return uniqueRelative;
+        return (uniqueRelative, currentMaster);
     }
 
     private async Task<IReadOnlyList<ProjectRefreshChange>> PullMissingMastersAsync(
@@ -1336,8 +1337,8 @@ public sealed class ProjectStore : IProjectStore, IDisposable
             try
             {
                 Directory.CreateDirectory(Path.Combine(root, category.FolderPath));
-                var relativePath = await CopyMasterIntoProjectAsync(master, root, category.FolderPath, cancellationToken);
-                await ApplyMasterMetadataAsync(document, master, root, relativePath, now, cancellationToken);
+                var (relativePath, currentMaster) = await CopyMasterIntoProjectAsync(master, root, category.FolderPath, cancellationToken);
+                await ApplyMasterMetadataAsync(document, currentMaster, root, relativePath, now, cancellationToken);
                 changes.Add(new ProjectRefreshChange(
                     relativePath,
                     "Master Ditarik",

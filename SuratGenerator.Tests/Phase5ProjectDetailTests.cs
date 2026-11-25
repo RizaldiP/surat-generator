@@ -323,6 +323,44 @@ public class Phase5ProjectDetailTests
     }
 
     [Fact]
+    public async Task RefreshMenarikMasterDanMenyinkronkanChecksumYangBerubah()
+    {
+        var environment = CreateEnvironment();
+        try
+        {
+            var category = (await environment.Categories.GetAllAsync())[0];
+            var source = Path.Combine(environment.Directory, "izin.docx");
+            await File.WriteAllTextAsync(source, "isi lama");
+            var master = await environment.Masters.UploadAsync(category.Id, source, "Izin", true);
+
+            using var store = environment.CreateProjectStore();
+            var project = await CreateProjectAsync(store);
+            var detail = await store.GetDetailAsync(project.Id);
+            var document = Assert.Single(detail!.Documents, item => item.MasterDocumentId == master.Id);
+            var copiedPath = await store.ResolveDocumentPathAsync(document.Id);
+            File.Delete(copiedPath);
+
+            var paths = await environment.PathService.GetAsync();
+            var storedPath = Path.Combine(paths.MasterDocumentsDirectory, master.StoredFilePath);
+            await File.WriteAllTextAsync(storedPath, "isi baru master");
+            var expected = await environment.FileService.ComputeChecksumAsync(storedPath);
+
+            var refresh = await store.RefreshFilesystemAsync(project.Id, pullMissingMasters: true);
+
+            Assert.Contains(refresh.Changes, change => change.Action == "Master Ditarik");
+            var current = Assert.Single(await environment.Masters.GetAllAsync(), item => item.Id == master.Id);
+            Assert.Equal(expected, current.Checksum);
+            Assert.Contains(refresh.Detail.Documents, item =>
+                item.MasterDocumentId == master.Id
+                && item.VersionSnapshot.Contains(expected[..12], StringComparison.Ordinal));
+        }
+        finally
+        {
+            Cleanup(environment);
+        }
+    }
+
+    [Fact]
     public async Task DeleteDocumentMenghapusFileDanCatatanSertaFieldValue()
     {
         var environment = CreateEnvironment();

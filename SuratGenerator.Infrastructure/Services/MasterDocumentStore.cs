@@ -375,6 +375,54 @@ public sealed class MasterDocumentStore : IMasterDocumentStore, IDisposable
         return path;
     }
 
+    public async Task<MasterDocumentInfo> EnsureCurrentChecksumAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var master = await FindEntityAsync(id, cancellationToken);
+        var root = await GetRootAsync(cancellationToken);
+        var path = ResolvePath(root, master.StoredFilePath);
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException("File master tidak ditemukan.", path);
+        }
+
+        var checksum = await _fileService.ComputeChecksumAsync(path, cancellationToken);
+        var size = new FileInfo(path).Length;
+        if (string.Equals(master.Checksum, checksum, StringComparison.OrdinalIgnoreCase)
+            && master.FileSizeBytes == size)
+        {
+            return Map(master);
+        }
+
+        var version = master.CurrentVersionId.HasValue
+            ? await _dbContext.MasterDocumentVersions
+                .FirstOrDefaultAsync(item => item.Id == master.CurrentVersionId.Value, cancellationToken)
+            : null;
+        using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            master.Checksum = checksum;
+            master.FileSizeBytes = size;
+            if (version is not null)
+            {
+                version.Checksum = checksum;
+                version.FileSizeBytes = size;
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+
+        _logger.Warning($"Checksum master '{master.DisplayName}' diperbarui otomatis dari file aktual.");
+        return Map(master);
+    }
+
     public async Task RelocateAsync(
         string oldRoot,
         string newRoot,

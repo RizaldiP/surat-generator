@@ -49,5 +49,7 @@ public interface IMasterDocumentStore
 
     Task<string> ResolveOpenPathAsync(Guid id, CancellationToken cancellationToken = default);
 
+    Task<MasterDocumentInfo> EnsureCurrentChecksumAsync(Guid id, CancellationToken cancellationToken = default);
+
     Task RelocateAsync(string oldRoot, string newRoot, CancellationToken cancellationToken = default);
 }

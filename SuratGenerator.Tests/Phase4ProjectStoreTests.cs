@@ -192,6 +192,47 @@ public class Phase4ProjectStoreTests
         }
     }
 
+    [Fact]
+    public async Task CreateAsyncMenyinkronkanChecksumMasterYangBerubahDiLuarAplikasi()
+    {
+        var directory = CreateDirectory();
+        var databasePath = Path.Combine(directory, "test.db");
+        var masterRoot = Path.Combine(directory, "MasterDocuments");
+        var projectsRoot = Path.Combine(directory, "Projects");
+        var options = CreateOptions(databasePath);
+
+        try
+        {
+            using var categories = new DocumentCategoryStore(options);
+            var fileService = new WorkspaceFileService();
+            var pathService = new TestWorkspacePathService(masterRoot, projectsRoot);
+            using var masters = new MasterDocumentStore(options, pathService, fileService);
+            var category = (await categories.GetSnapshotAsync()).Categories[0];
+            var sourcePath = Path.Combine(directory, "panduan.docx");
+            await File.WriteAllTextAsync(sourcePath, "isi lama");
+            var master = await masters.UploadAsync(category.Id, sourcePath, "Panduan", true);
+
+            var storedPath = Path.Combine(masterRoot, master.StoredFilePath);
+            await File.WriteAllTextAsync(storedPath, "isi baru dari luar aplikasi");
+            var expected = await fileService.ComputeChecksumAsync(storedPath);
+
+            using var store = new ProjectStore(options, pathService, fileService, categories, masters);
+            var result = await store.CreateAsync(new ProjectCreationRequest("KRI D", "Pekerjaan D", Array.Empty<ProjectFieldRequest>()));
+
+            Assert.NotNull(result.Project);
+            var current = Assert.Single(await masters.GetAllAsync(), item => item.Id == master.Id);
+            Assert.Equal(expected, current.Checksum);
+            var detail = await store.GetDetailAsync(result.Project.Id);
+            Assert.Contains(detail!.Documents, document =>
+                document.MasterDocumentId == master.Id
+                && document.VersionSnapshot.Contains(expected[..12], StringComparison.Ordinal));
+        }
+        finally
+        {
+            Cleanup(directory);
+        }
+    }
+
     private static string CreateDirectory()
     {
         var directory = Path.Combine(Path.GetTempPath(), "SuratGeneratorPhase4Tests", Guid.NewGuid().ToString("N"));

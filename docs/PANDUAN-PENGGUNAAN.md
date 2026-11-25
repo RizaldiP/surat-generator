@@ -81,6 +81,7 @@ Perubahan struktur hanya berlaku untuk pekerjaan baru atau selanjutnya. Pekerjaa
 ## Manajemen Pekerjaan
 
 - Tombol **Buat Pekerjaan** membuat folder proyek dan menyalin master dokumen aktif dari kategori yang aktif. Master yang nonaktif atau diarsipkan tidak disalin dan tidak menampilkan peringatan pada detail pekerjaan.
+- Jika file master aktif berubah di luar aplikasi sehingga checksum-nya tidak sinkron, aplikasi memperbarui checksum dari file aktual saat master dipakai dan tetap melanjutkan pembuatan atau refresh pekerjaan.
 - Tombol **Refresh Dokumen** menyelaraskan folder dengan catatan aplikasi, termasuk file yang ditambahkan langsung dari File Explorer dan master aktif baru yang belum memiliki salinan di pekerjaan. Indikator progress tetap menampilkan 100% dengan keterangan **Selesai** sebelum disembunyikan.
 - Jika sudah ada file dengan nama master yang sama di folder pekerjaan, file itu diadopsi sebagai salinan master tanpa ditimpa, walaupun isinya berbeda. Salinan master yang sama persis dan bertumpuk dibersihkan otomatis; salinan dengan isi berbeda dipertahankan dan diberi peringatan.
 - Tombol **Hapus** pada baris dokumen meminta konfirmasi, lalu menghapus catatan dokumen beserta file-nya dari folder pekerjaan. Baris tanpa file hanya menghapus catatan aplikasi. Master yang dihapus dapat ditarik lagi dengan **Refresh Dokumen** tanpa membuat duplikat.
