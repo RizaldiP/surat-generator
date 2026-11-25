@@ -3,8 +3,11 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:SuratGenerator.Desktop.Views.Controls"
+      ScrollViewer.CanContentScroll="False"
       Background="{DynamicResource AppBackgroundBrush}">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <ScrollViewer AutomationProperties.AutomationId="ProjectDetailScrollViewer"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24" MaxWidth="1200" HorizontalAlignment="Stretch">
             <TextBlock Text="Detail Pekerjaan" Style="{StaticResource AppTitleText}"/>
             <TextBlock Margin="0,4,0,0"

@@ -106,7 +106,9 @@ function Test-ScrollToMarker {
         [string] $ScrollViewerId,
         [string] $Marker,
         [System.Windows.Automation.ControlType] $MarkerControlType = [System.Windows.Automation.ControlType]::Text,
-        [int] $WheelSteps = 20
+        [int] $WheelSteps = 20,
+        [double] $WheelXRatio = 0.5,
+        [int] $WheelDelta = -120
     )
 
     $scrollViewer = Find-ElementByAutomationId -Root $Window -AutomationId $ScrollViewerId
@@ -130,10 +132,10 @@ function Test-ScrollToMarker {
     }
 
     $scrollRect = $scrollViewer.Current.BoundingRectangle
-    $scrollX = [int]($scrollRect.X + $scrollRect.Width / 2)
+    $scrollX = [int]($scrollRect.X + $scrollRect.Width * $WheelXRatio)
     $scrollY = [int]($scrollRect.Y + $scrollRect.Height / 2)
     for ($step = 0; $step -lt $WheelSteps; $step++) {
-        [SmokeWindow]::Wheel($Handle, $scrollX, $scrollY, -120)
+        [SmokeWindow]::Wheel($Handle, $scrollX, $scrollY, $WheelDelta)
         Start-Sleep -Milliseconds 120
     }
     Start-Sleep -Milliseconds 600
@@ -279,6 +281,8 @@ if ($process.MainWindowHandle -eq [IntPtr]::Zero) {
                         $failures.Add('Project detail marker was not found: Refresh Dokumen')
                     } else {
                         Write-Host 'PROJECT_DETAIL_MARKER_OK=Refresh Dokumen'
+                        Test-ScrollToMarker -Window $window -Handle $process.MainWindowHandle -PageName 'ProjectDetail' -ScrollViewerId 'ProjectDetailScrollViewer' -Marker 'Field Profil' -WheelSteps 32 -WheelXRatio 0.01
+                        Test-ScrollToMarker -Window $window -Handle $process.MainWindowHandle -PageName 'ProjectDetailBack' -ScrollViewerId 'ProjectDetailScrollViewer' -Marker 'Kembali' -MarkerControlType ([System.Windows.Automation.ControlType]::Button) -WheelSteps 1 -WheelXRatio 0.01
                         $backButton = Find-FirstElement -Root $window -Name 'Kembali' -ControlType ([System.Windows.Automation.ControlType]::Button)
                         if ($null -eq $backButton) {
                             $failures.Add('Project detail back button was not found.')

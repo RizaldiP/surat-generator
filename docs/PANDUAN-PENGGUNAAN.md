@@ -84,6 +84,7 @@ Perubahan struktur hanya berlaku untuk pekerjaan baru atau selanjutnya. Pekerjaa
 - Jika folder pekerjaan dihapus atau dipindahkan dari File Explorer, aplikasi menandai pekerjaan sebagai folder hilang dan menyembunyikannya dari daftar. Data aplikasi tetap tersimpan.
 - Jika folder dikembalikan ke path asal, tekan **Periksa Ulang** pada banner detail. Pekerjaan akan muncul lagi di daftar.
 - Tombol **Hapus dari Daftar** hanya menghapus catatan aplikasi untuk pekerjaan bersangkutan. Folder asli di File Explorer tidak dihapus.
+- Halaman detail pekerjaan dapat digulir dengan mouse wheel untuk mencapai daftar dokumen dan **Field Profil** pada layar kecil.
 
 ## Menu Panduan
 
