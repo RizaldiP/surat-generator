@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SuratGenerator.Core\SuratGenerator.Core.csproj" />
+    <ProjectReference Include="..\SuratGenerator.Desktop\SuratGenerator.Desktop.csproj" />
     <ProjectReference Include="..\SuratGenerator.Documents\SuratGenerator.Documents.csproj" />
     <ProjectReference Include="..\SuratGenerator.Infrastructure\SuratGenerator.Infrastructure.csproj" />
   </ItemGroup>

@@ -5,6 +5,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SuratGenerator.Core.Models;
+using SuratGenerator.Core.Services;
 using SuratGenerator.Documents.Models;
 using SuratGenerator.Documents.Services;
 using SuratGenerator.Infrastructure.Data;
@@ -288,6 +289,45 @@ public class FolderTemplateTests
             Assert.Equal(Path.GetFullPath(source), template.SourceFilePath);
             Assert.Contains(template.Fields, field => field.Key == "nama");
             Assert.Equal(originalHash, Hash(source));
+        }
+        finally
+        {
+            Cleanup(directory);
+        }
+    }
+
+    [Fact]
+    public async Task GantiFolderMenyembunyikanTemplateDariFolderLama()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var oldFolder = Path.Combine(directory, "Lama");
+            var newFolder = Path.Combine(directory, "Baru");
+            Directory.CreateDirectory(oldFolder);
+            Directory.CreateDirectory(newFolder);
+            CreateDocx(Path.Combine(oldFolder, "lama.docx"), "{lama}");
+            CreateDocx(Path.Combine(newFolder, "baru.docx"), "{baru}");
+
+            using var store = CreateStore(directory);
+            var service = CreateService(directory, store);
+            await service.SetFolderAsync(oldFolder, false);
+            await service.ScanAsync();
+
+            await service.SetFolderAsync(newFolder, false);
+            var scan = await service.ScanAsync();
+            var settings = await service.GetSettingsAsync();
+            var allTemplates = await store.GetAllAsync();
+            var scopedTemplates = allTemplates
+                .Where(template => TemplateFolderScope.IsWithin(template, settings))
+                .ToList();
+
+            Assert.Equal(2, allTemplates.Count);
+            Assert.Single(scopedTemplates);
+            Assert.Contains("baru.docx", scopedTemplates[0].SourceFilePath, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(
+                scan.Messages,
+                message => message.Contains("dari folder lain tidak ditampilkan", StringComparison.Ordinal));
         }
         finally
         {

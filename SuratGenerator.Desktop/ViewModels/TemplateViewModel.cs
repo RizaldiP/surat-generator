@@ -162,6 +162,16 @@ internal sealed class TemplateViewModel : ObservableObject
 
     public async Task ScanFolderAsync() => await LoadAsync(scanFolder: true);
 
+    private async Task<(List<TemplateInfo> Templates, int HiddenCount)> LoadScopedTemplatesAsync()
+    {
+        var settings = await _folderService.GetSettingsAsync();
+        var allTemplates = await _templateStore.GetAllAsync();
+        var templates = allTemplates
+            .Where(template => TemplateFolderScope.IsWithin(template, settings))
+            .ToList();
+        return (templates, allTemplates.Count - templates.Count);
+    }
+
     private async Task LoadAsync(bool scanFolder, TemplateFolderScanSummary? externalSummary = null)
     {
         IsLoading = true;
@@ -182,7 +192,8 @@ internal sealed class TemplateViewModel : ObservableObject
                 }
             }
 
-            _allTemplates = (await _templateStore.GetAllAsync()).ToList();
+            var (templates, hiddenCount) = await LoadScopedTemplatesAsync();
+            _allTemplates = templates;
             var categories = _allTemplates
                 .Select(template => template.Category)
                 .Where(category => !string.IsNullOrWhiteSpace(category))
@@ -206,9 +217,12 @@ internal sealed class TemplateViewModel : ObservableObject
             ApplyFilters();
             OnPropertyChanged(nameof(HasAnyTemplates));
             OnPropertyChanged(nameof(EmptyStateMessage));
+            var hiddenText = hiddenCount > 0
+                ? $" {hiddenCount} template dari folder lain disembunyikan."
+                : string.Empty;
             var listMessage = ShowFavoritesOnly
-                ? $"Menampilkan {_visibleTemplates.Count} favorit dari {_allTemplates.Count} template."
-                : $"Menampilkan {_visibleTemplates.Count} dari {_allTemplates.Count} template.";
+                ? $"Menampilkan {_visibleTemplates.Count} favorit dari {_allTemplates.Count} template.{hiddenText}"
+                : $"Menampilkan {_visibleTemplates.Count} dari {_allTemplates.Count} template.{hiddenText}";
             SetStatus(
                 scanMessage is null ? listMessage : $"{scanMessage} {listMessage}",
                 externalSummary is null || !externalSummary.HasIssues);

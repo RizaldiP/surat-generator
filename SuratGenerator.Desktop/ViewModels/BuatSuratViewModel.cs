@@ -276,6 +276,16 @@ internal sealed class BuatSuratViewModel : ObservableObject, IDisposable
 
     public string UpdateTooltip => "Pindai folder untuk memperbarui daftar template.";
 
+    private async Task<(IReadOnlyList<TemplateInfo> Templates, int HiddenCount)> LoadScopedTemplatesAsync()
+    {
+        var settings = await _folderService.GetSettingsAsync();
+        var allTemplates = await _templateStore.GetAllAsync();
+        var templates = allTemplates
+            .Where(template => TemplateFolderScope.IsWithin(template, settings))
+            .ToList();
+        return (templates, allTemplates.Count - templates.Count);
+    }
+
     public async Task LoadTemplatesAsync(TemplateFolderScanSummary? scanSummary = null)
     {
         await _loadGate.WaitAsync();
@@ -294,20 +304,28 @@ internal sealed class BuatSuratViewModel : ObservableObject, IDisposable
         IsLoading = true;
         try
         {
-            var templates = (await _templateStore.GetAllAsync()).ToList();
+            var (templates, hiddenCount) = await LoadScopedTemplatesAsync();
             _allTemplates.Clear();
             _allTemplates.AddRange(templates);
             ApplyTemplateFilter();
 
             OnPropertyChanged(nameof(HasTemplates));
-            if (_selectedTemplate is null && templates.Count > 0)
+            if (_selectedTemplate is not null && !templates.Any(template => template.Id == _selectedTemplate.Id))
+            {
+                _selectedTemplate = null;
+                OnPropertyChanged(nameof(SelectedTemplate));
+            }
+
+            if (_selectedTemplate is null && templates.Count > 0 && _currentDraftId is null)
             {
                 _selectedTemplate = templates[0];
                 OnPropertyChanged(nameof(SelectedTemplate));
                 ApplyTemplate(templates[0]);
             }
 
-            var listText = $"Menampilkan {_visibleTemplates.Count} dari {templates.Count} template dari folder.";
+            var listText = hiddenCount > 0
+                ? $"Menampilkan {_visibleTemplates.Count} dari {templates.Count} template; {hiddenCount} template dari folder lain disembunyikan."
+                : $"Menampilkan {_visibleTemplates.Count} dari {templates.Count} template dari folder.";
             var scanText = scanSummary is null ? listText : $"{scanSummary.SummaryText} {listText}";
             SetStatus(
                 templates.Count > 0
@@ -357,35 +375,45 @@ internal sealed class BuatSuratViewModel : ObservableObject, IDisposable
             }
 
             var scan = await _folderService.ScanAsync();
-            var templates = (await _templateStore.GetAllAsync()).ToList();
+            var (templates, hiddenCount) = await LoadScopedTemplatesAsync();
             var previousId = _selectedTemplate?.Id;
             _allTemplates.Clear();
             _allTemplates.AddRange(templates);
             ApplyTemplateFilter();
 
             OnPropertyChanged(nameof(HasTemplates));
-            var selected = previousId is null
-                ? templates.FirstOrDefault()
-                : templates.FirstOrDefault(template => template.Id == previousId)
-                  ?? templates.FirstOrDefault();
-            if (selected is not null)
-            {
-                _selectedTemplate = selected;
-                OnPropertyChanged(nameof(SelectedTemplate));
-                if (selected.Id != _currentTemplate?.Id)
-                {
-                    ApplyTemplate(selected);
-                }
-            }
-            else
+            if (_selectedTemplate is not null && !templates.Any(template => template.Id == _selectedTemplate.Id))
             {
                 _selectedTemplate = null;
                 OnPropertyChanged(nameof(SelectedTemplate));
             }
 
-            SetStatus(
-                $"{scan.SummaryText} Menampilkan {_visibleTemplates.Count} dari {templates.Count} template.",
-                !scan.HasIssues);
+            if (_currentDraftId is null)
+            {
+                var selected = previousId is null
+                    ? templates.FirstOrDefault()
+                    : templates.FirstOrDefault(template => template.Id == previousId)
+                      ?? templates.FirstOrDefault();
+                if (selected is not null)
+                {
+                    _selectedTemplate = selected;
+                    OnPropertyChanged(nameof(SelectedTemplate));
+                    if (selected.Id != _currentTemplate?.Id)
+                    {
+                        ApplyTemplate(selected);
+                    }
+                }
+                else
+                {
+                    _selectedTemplate = null;
+                    OnPropertyChanged(nameof(SelectedTemplate));
+                }
+            }
+
+            var listText = hiddenCount > 0
+                ? $"Menampilkan {_visibleTemplates.Count} dari {templates.Count} template; {hiddenCount} template dari folder lain disembunyikan."
+                : $"Menampilkan {_visibleTemplates.Count} dari {templates.Count} template.";
+            SetStatus($"{scan.SummaryText} {listText}", !scan.HasIssues);
         }
         catch (Exception exception) when (IsExpectedFailure(exception))
         {

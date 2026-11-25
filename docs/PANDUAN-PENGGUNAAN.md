@@ -16,10 +16,10 @@ Seluruh alur bekerja tanpa internet. Microsoft Word 2016+ tetap diperlukan untuk
 2. Buka halaman **Pengaturan**.
 3. Tekan **Pilih Folder**, lalu pilih folder tersebut.
 4. Centang **Sertakan subfolder** jika template juga disimpan di dalam subfolder.
-5. Tekan **Simpan**. Aplikasi langsung memindai folder dan menampilkan ringkasan hasil.
+5. Tekan **Simpan**. Aplikasi langsung memindai folder, menampilkan ringkasan hasil, dan menyaring daftar template ke folder yang baru dipilih.
 6. Perubahan file baru, file diubah, atau file dipindahkan terdeteksi otomatis dalam beberapa detik. Tombol **Pindai Sekarang** tetap tersedia bila ingin menyelaraskan secara manual.
 
-Aplikasi menyalin template ke folder data aplikasi dan tidak mengubah file asli. File `.doc` dikonversi otomatis ke `.docx` sementara dengan Microsoft Word, lalu hasil konversi dibersihkan setelah template dibaca. File sementara Word yang diawali `~$` diabaikan.
+Aplikasi menyalin template ke folder data aplikasi dan tidak mengubah file asli. Template dari folder/path lama tetap tersimpan di data aplikasi, tetapi disembunyikan dari daftar; ringkasan pemindaian memberi tahu jumlah template yang disembunyikan. File `.doc` dikonversi otomatis ke `.docx` sementara dengan Microsoft Word, lalu hasil konversi dibersihkan setelah template dibaca. File sementara Word yang diawali `~$` diabaikan.
 
 ## Buat Surat
 
@@ -29,7 +29,8 @@ Aplikasi menyalin template ke folder data aplikasi dan tidak mengubah file asli.
 - Filter tetap aktif setelah pemindaian otomatis maupun setelah menekan **Pindai Folder**; kosongkan kolom untuk menampilkan semua template.
 - Centang **Favorit saja** untuk menampilkan hanya template yang sudah ditandai favorit. Template yang sedang dipakai tetap aktif walau bukan favorit.
 - Gunakan daftar template di bagian atas halaman Buat Surat.
-- Template berasal dari hasil pindai folder yang diatur di Pengaturan.
+- Template berasal dari hasil pindai folder yang diatur di Pengaturan, termasuk subfolder bila opsi **Sertakan subfolder** aktif.
+- Template dari folder/path lama tidak dihapus, tetapi tidak ditampilkan pada halaman Buat Surat maupun Template.
 - Daftar diperbarui otomatis saat folder template berubah. Tekan **Pindai Folder** hanya bila ingin menyelaraskan secara manual tanpa berpindah halaman.
 - Placeholder ditulis dengan format `{nama field}`, misalnya `{tanggal surat}` atau `{nomor surat}`.
 - Placeholder dikenali dari paragraf, tabel, header, footer, dan teks yang terpecah menjadi beberapa Word run.
@@ -80,7 +81,7 @@ Perubahan struktur hanya berlaku untuk pekerjaan baru atau selanjutnya. Pekerjaa
 ## Manajemen Pekerjaan
 
 - Tombol **Buat Pekerjaan** membuat folder proyek dan menyalin master dokumen aktif dari kategori yang aktif. Master yang nonaktif atau diarsipkan tidak disalin dan tidak menampilkan peringatan pada detail pekerjaan.
-- Tombol **Refresh Dokumen** menyelaraskan folder dengan catatan aplikasi, termasuk file yang ditambahkan langsung dari File Explorer dan master aktif baru yang belum memiliki salinan di pekerjaan.
+- Tombol **Refresh Dokumen** menyelaraskan folder dengan catatan aplikasi, termasuk file yang ditambahkan langsung dari File Explorer dan master aktif baru yang belum memiliki salinan di pekerjaan. Indikator progress tetap menampilkan 100% dengan keterangan **Selesai** sebelum disembunyikan.
 - Jika sudah ada file dengan nama master yang sama di folder pekerjaan, file itu diadopsi sebagai salinan master tanpa ditimpa, walaupun isinya berbeda. Salinan master yang sama persis dan bertumpuk dibersihkan otomatis; salinan dengan isi berbeda dipertahankan dan diberi peringatan.
 - Tombol **Hapus** pada baris dokumen meminta konfirmasi, lalu menghapus catatan dokumen beserta file-nya dari folder pekerjaan. Baris tanpa file hanya menghapus catatan aplikasi. Master yang dihapus dapat ditarik lagi dengan **Refresh Dokumen** tanpa membuat duplikat.
 - Jika folder pekerjaan dihapus atau dipindahkan dari File Explorer, aplikasi menandai pekerjaan sebagai folder hilang dan menyembunyikannya dari daftar. Data aplikasi tetap tersimpan.

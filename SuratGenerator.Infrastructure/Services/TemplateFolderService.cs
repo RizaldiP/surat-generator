@@ -249,7 +249,11 @@ public sealed class TemplateFolderService : ITemplateFolderService
 
         var presentPaths = new HashSet<string>(sourcePaths, StringComparer.OrdinalIgnoreCase);
         var missing = templates.Count(template =>
-            template.HasSource && !presentPaths.Contains(Normalize(template.SourceFilePath!)));
+            TemplateFolderScope.IsWithin(template, settings)
+            && template.HasSource
+            && !presentPaths.Contains(Normalize(template.SourceFilePath!)));
+        var outside = templates.Count(template =>
+            template.HasSource && !TemplateFolderScope.IsWithin(template, settings));
 
         progress?.Report(new SyncProgressInfo("Memindai", 100, "Selesai"));
 
@@ -257,6 +261,10 @@ public sealed class TemplateFolderService : ITemplateFolderService
         messages.Add(missing > 0
             ? $"Pindai selesai. {lastScan.LastScanText}. {missing} template tidak ditemukan di folder."
             : $"Pindai selesai. {lastScan.LastScanText}.");
+        if (outside > 0)
+        {
+            messages.Add($"{outside} template dari folder lain tidak ditampilkan.");
+        }
 
         return new TemplateFolderScanSummary(imported, updated, unchanged, missing, errors, messages.ToArray());
     }

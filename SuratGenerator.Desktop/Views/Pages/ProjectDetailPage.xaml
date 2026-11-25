@@ -91,9 +91,11 @@
                                  Height="6"
                                  Minimum="0"
                                  Maximum="100"
+                                 AutomationProperties.AutomationId="RefreshProgressBar"
                                  Value="{Binding ProgressPercent, Mode=OneWay}"
                                  Visibility="{Binding HasProgress, Converter={StaticResource AppBoolToVisibility}}"/>
                     <TextBlock Margin="0,6,0,0"
+                               AutomationProperties.AutomationId="RefreshProgressText"
                                Text="{Binding ProgressText}"
                                Visibility="{Binding HasProgress, Converter={StaticResource AppBoolToVisibility}}"
                                Style="{StaticResource AppSecondaryText}"/>

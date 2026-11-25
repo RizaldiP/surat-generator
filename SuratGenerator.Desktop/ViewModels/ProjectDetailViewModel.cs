@@ -20,6 +20,7 @@ internal sealed class ProjectDetailViewModel : ObservableObject
     private readonly IExplorerService _explorer;
     private readonly IConfirmationService _confirmations;
     private readonly IDocumentFieldValueStore _fieldValues;
+    private static readonly TimeSpan ProgressCompletionHold = TimeSpan.FromMilliseconds(180);
     private readonly ICollectionView _documentView;
     private readonly ObservableCollection<ProjectCategoryRow> _categories = new();
     private readonly ObservableCollection<ProjectDocumentRow> _documents = new();
@@ -29,6 +30,7 @@ internal sealed class ProjectDetailViewModel : ObservableObject
     private ProjectChecklistSummary? _checklist;
     private bool _isLoading;
     private bool _isBusy;
+    private int _progressGeneration;
     private string _statusMessage = string.Empty;
     private bool _isStatusSuccess;
     private int _progressPercent;
@@ -542,6 +544,8 @@ internal sealed class ProjectDetailViewModel : ObservableObject
 
     private async Task RunAsync(Func<Task> action)
     {
+        var generation = ++_progressGeneration;
+        var succeeded = false;
         IsBusy = true;
         ProgressPercent = 0;
         ProgressText = string.Empty;
@@ -549,6 +553,7 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         try
         {
             await action();
+            succeeded = true;
         }
         catch (Exception exception)
         {
@@ -556,19 +561,40 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         }
         finally
         {
-            ProgressPercent = 100;
-            IsBusy = false;
-            OnPropertyChanged(nameof(HasProgress));
+            if (generation == _progressGeneration)
+            {
+                if (succeeded)
+                {
+                    ProgressPercent = 100;
+                    ProgressText = "Selesai";
+                    OnPropertyChanged(nameof(HasProgress));
+                    await Task.Delay(ProgressCompletionHold);
+                }
+
+                _progressGeneration++;
+                IsBusy = false;
+                ProgressPercent = 0;
+                ProgressText = string.Empty;
+                OnPropertyChanged(nameof(HasProgress));
+            }
         }
     }
 
-    private IProgress<ProjectCreationProgressInfo> CreateProgress() =>
-        new Progress<ProjectCreationProgressInfo>(report =>
+    private IProgress<ProjectCreationProgressInfo> CreateProgress()
+    {
+        var generation = _progressGeneration;
+        return new Progress<ProjectCreationProgressInfo>(report =>
         {
+            if (generation != _progressGeneration || !IsBusy)
+            {
+                return;
+            }
+
             ProgressPercent = report.Percent;
             ProgressText = $"{report.Stage}: {report.Message}";
             OnPropertyChanged(nameof(HasProgress));
         });
+    }
 
     private void ApplyDetail(ProjectDetailInfo detail)
     {

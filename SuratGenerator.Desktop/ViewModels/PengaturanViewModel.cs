@@ -1,8 +1,10 @@
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using SuratGenerator.Core.Models;
 using SuratGenerator.Core.Services;
+using SuratGenerator.Desktop.Messages;
 using SuratGenerator.Desktop.Services;
 
 namespace SuratGenerator.Desktop.ViewModels;
@@ -642,10 +644,10 @@ internal sealed class PengaturanViewModel : ObservableObject
 
     private async Task ScanFolderAsync()
     {
-        await RunAsync(ScanInternalAsync);
+        await RunAsync(async () => await ScanInternalAsync());
     }
 
-    private async Task ScanInternalAsync()
+    private async Task<TemplateFolderScanSummary> ScanInternalAsync()
     {
         var progress = new Progress<SyncProgressInfo>(report =>
         {
@@ -657,6 +659,8 @@ internal sealed class PengaturanViewModel : ObservableObject
         var settings = await _folderService.GetSettingsAsync();
         ApplySettings(settings);
         SetStatus(result.SummaryText, !result.HasIssues);
+        WeakReferenceMessenger.Default.Send(new TemplatesChangedMessage(result));
+        return result;
     }
 
     private async Task RunAsync(Func<Task> action)
