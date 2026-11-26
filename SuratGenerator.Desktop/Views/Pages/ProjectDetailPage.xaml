@@ -233,12 +233,13 @@
                                                            Content="Isi Dokumen"
                                                            ToolTipService.ToolTip="Isi placeholder Word dengan profil pekerjaan"
                                                            Visibility="{Binding CanEditDocument, Converter={StaticResource AppBoolToVisibility}}"/>
-                                                 <ui:Button Margin="8,0,0,0"
-                                                            Command="{Binding DataContext.MarkCompleteCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
-                                                            CommandParameter="{Binding}"
-                                                            Content="Tandai Selesai"
-                                                            Appearance="Primary"
-                                                            Visibility="{Binding CanMarkComplete, Converter={StaticResource AppBoolToVisibility}}"/>
+                                                <CheckBox Margin="8,0,0,0"
+                                                          VerticalAlignment="Center"
+                                                          Content="Selesai"
+                                                          IsChecked="{Binding IsCompleted, Mode=TwoWay}"
+                                                          IsEnabled="{Binding CanToggleComplete}"
+                                                          Visibility="{Binding CanToggleComplete, Converter={StaticResource AppBoolToVisibility}}"
+                                                          ToolTipService.ToolTip="Centang atau batalkan status Selesai secara manual"/>
                                                  <ui:Button Margin="8,0,0,0"
                                                             Command="{Binding DataContext.OpenDocumentCommand, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}"
                                                            CommandParameter="{Binding}"

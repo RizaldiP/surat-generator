@@ -19,7 +19,6 @@ internal sealed class ProjectDetailViewModel : ObservableObject
     private readonly IProjectDialogService _dialogs;
     private readonly IExplorerService _explorer;
     private readonly IConfirmationService _confirmations;
-    private readonly IDocumentFieldValueStore _fieldValues;
     private static readonly TimeSpan ProgressCompletionHold = TimeSpan.FromMilliseconds(180);
     private readonly ICollectionView _documentView;
     private readonly ObservableCollection<ProjectCategoryRow> _categories = new();
@@ -55,7 +54,6 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         _dialogs = dialogs;
         _explorer = explorer;
         _confirmations = confirmations;
-        _fieldValues = fieldValues;
         Categories = new ReadOnlyObservableCollection<ProjectCategoryRow>(_categories);
         Documents = new ReadOnlyObservableCollection<ProjectDocumentRow>(_documents);
         Fields = new ReadOnlyObservableCollection<ProjectFieldInfo>(_fields);
@@ -74,9 +72,6 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         EditDocumentCommand = new RelayCommand<ProjectDocumentRow>(
             EditDocument,
             row => CanOperate() && !IsFolderMissing && row?.CanEditDocument == true);
-        MarkCompleteCommand = new AsyncRelayCommand<ProjectDocumentRow>(
-            MarkCompleteAsync,
-            row => CanOperate() && !IsFolderMissing && row?.CanMarkComplete == true);
         DeleteDocumentCommand = new AsyncRelayCommand<ProjectDocumentRow>(
             DeleteDocumentAsync,
             row => CanOperate() && row is not null);
@@ -124,8 +119,6 @@ internal sealed class ProjectDetailViewModel : ObservableObject
     public IAsyncRelayCommand OpenProjectFolderCommand { get; }
 
     public IRelayCommand<ProjectDocumentRow> EditDocumentCommand { get; }
-
-    public IAsyncRelayCommand<ProjectDocumentRow> MarkCompleteCommand { get; }
 
     public IAsyncRelayCommand<ProjectDocumentRow> DeleteDocumentCommand { get; }
 
@@ -474,40 +467,37 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         };
     }
 
-    private async Task MarkCompleteAsync(ProjectDocumentRow? row)
+    private async Task ToggleDocumentCompleteAsync(ProjectDocumentRow row, bool completed, string previousStatus)
     {
-        if (row is null || !row.CanMarkComplete)
+        if (IsBusy || IsLoading)
         {
-            return;
-        }
-
-        if (!_confirmations.ConfirmMarkComplete(row.DisplayName))
-        {
+            row.SetStatus(previousStatus);
+            RefreshDocumentSummary();
+            SetStatus("Perubahan status sedang diproses.", false);
             return;
         }
 
         await RunAsync(async () =>
         {
-            if (row.IsWordDocument)
+            try
             {
-                var unfilled = await _fieldValues.GetUnfilledRequiredPlaceholdersAsync(row.Id);
-                if (unfilled.Count > 0)
-                {
-                    SetStatus(
-                        $"Dokumen '{row.DisplayName}' belum bisa Selesai. Place holder kosong: {string.Join(", ", unfilled)}",
-                        false);
-                    return;
-                }
+                var updated = await _projectStore.SetDocumentStatusAsync(
+                    row.Id,
+                    completed ? DocumentStatuses.Completed : DocumentStatuses.Incomplete);
+                row.SetStatus(updated.Status);
+                RefreshDocumentSummary();
+                SetStatus(
+                    completed
+                        ? $"'{row.DisplayName}' ditandai Selesai."
+                        : $"'{row.DisplayName}' dikembalikan ke {DocumentStatuses.Incomplete}.",
+                    true);
             }
-
-            var updated = await _projectStore.SetDocumentStatusAsync(row.Id, DocumentStatuses.Completed);
-            var detail = await _projectStore.GetDetailAsync(_projectId);
-            if (detail is not null)
+            catch
             {
-                ApplyDetail(detail);
+                row.SetStatus(previousStatus);
+                RefreshDocumentSummary();
+                throw;
             }
-
-            SetStatus($"'{updated.DisplayName}' ditandai Selesai.", true);
         });
     }
 
@@ -613,7 +603,10 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         foreach (var document in detail.Documents)
         {
             var categoryName = categoryNames.TryGetValue(document.ProjectCategoryId, out var name) ? name : "-";
-            _documents.Add(new ProjectDocumentRow(document, categoryName));
+            _documents.Add(new ProjectDocumentRow(
+                document,
+                categoryName,
+                (row, completed, previousStatus) => _ = ToggleDocumentCompleteAsync(row, completed, previousStatus)));
         }
 
         _fields.Clear();
@@ -622,14 +615,19 @@ internal sealed class ProjectDetailViewModel : ObservableObject
             _fields.Add(field);
         }
 
-        CompletedRequiredCount = _documents.Count(document =>
-            document.IsRequired
-            && string.Equals(document.Status, DocumentStatuses.Completed, StringComparison.Ordinal));
-        _documentView.Refresh();
+        RefreshDocumentSummary();
 
         OnPropertyChanged(nameof(HasCategories));
         OnPropertyChanged(nameof(HasDocuments));
         OnPropertyChanged(nameof(HasFields));
+    }
+
+    private void RefreshDocumentSummary()
+    {
+        CompletedRequiredCount = _documents.Count(document =>
+            document.IsRequired
+            && string.Equals(document.Status, DocumentStatuses.Completed, StringComparison.Ordinal));
+        _documentView.Refresh();
     }
 
     private void Back() => _navigation.NavigateTo<Views.Pages.ProjectListPage>();
@@ -643,7 +641,6 @@ internal sealed class ProjectDetailViewModel : ObservableObject
         OpenCategoryFolderCommand.NotifyCanExecuteChanged();
         OpenProjectFolderCommand.NotifyCanExecuteChanged();
         EditDocumentCommand.NotifyCanExecuteChanged();
-        MarkCompleteCommand.NotifyCanExecuteChanged();
         DeleteDocumentCommand.NotifyCanExecuteChanged();
         DeleteFromListCommand.NotifyCanExecuteChanged();
     }

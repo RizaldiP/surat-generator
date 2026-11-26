@@ -21,6 +21,8 @@ internal sealed class DocumentEditorViewModel : ObservableObject, IDisposable
     private readonly IWordDocumentService _wordService;
     private readonly IPdfPageRenderer _pdfRenderer;
     private readonly IConfirmationService _confirmations;
+    private readonly ISaveFileDialogService _saveFileDialogService;
+    private readonly IGeneratedDocumentStore _generatedDocumentStore;
     private readonly INavigationService _navigation;
     private readonly IAppLogger _logger;
     private readonly ObservableCollection<DocumentFieldEditViewModel> _fields = new();
@@ -49,6 +51,8 @@ internal sealed class DocumentEditorViewModel : ObservableObject, IDisposable
         IWordDocumentService wordService,
         IPdfPageRenderer pdfRenderer,
         IConfirmationService confirmations,
+        ISaveFileDialogService saveFileDialogService,
+        IGeneratedDocumentStore generatedDocumentStore,
         INavigationService navigation,
         IAppLogger logger)
     {
@@ -59,16 +63,22 @@ internal sealed class DocumentEditorViewModel : ObservableObject, IDisposable
         _wordService = wordService;
         _pdfRenderer = pdfRenderer;
         _confirmations = confirmations;
+        _saveFileDialogService = saveFileDialogService;
+        _generatedDocumentStore = generatedDocumentStore;
         _navigation = navigation;
         _logger = logger;
         Fields = new ReadOnlyObservableCollection<DocumentFieldEditViewModel>(_fields);
         PreviewPages = new ReadOnlyObservableCollection<PreviewPageViewModel>(_previewPages);
         BackCommand = new RelayCommand(Back);
-        SaveCommand = new AsyncRelayCommand(SaveAsync, CanOperate);
-        RefreshFromProfileCommand = new AsyncRelayCommand(RefreshFromProfileAsync, CanOperate);
-        PromoteToProfileCommand = new AsyncRelayCommand<DocumentFieldEditViewModel>(
-            PromoteToProfileAsync,
-            field => CanOperate() && field is not null);
+        SaveDraftCommand = new AsyncRelayCommand(SaveDraftAsync, CanOperate);
+        ResetFormCommand = new AsyncRelayCommand(ResetAsync, CanOperate);
+        ExportWordCommand = new AsyncRelayCommand(
+            () => ExportAsync(GeneratedDocumentKind.Docx),
+            CanOperate);
+        ExportPdfCommand = new AsyncRelayCommand(
+            () => ExportAsync(GeneratedDocumentKind.Pdf),
+            CanOperate);
+        PrintCommand = new AsyncRelayCommand(PrintAsync, CanOperate);
         RetryPreviewCommand = new RelayCommand(SchedulePreview);
         ZoomInCommand = new RelayCommand(() => Zoom = Math.Min(2, Zoom + 0.1));
         ZoomOutCommand = new RelayCommand(() => Zoom = Math.Max(0.4, Zoom - 0.1));
@@ -81,11 +91,15 @@ internal sealed class DocumentEditorViewModel : ObservableObject, IDisposable
 
     public IRelayCommand BackCommand { get; }
 
-    public IAsyncRelayCommand SaveCommand { get; }
+    public IAsyncRelayCommand SaveDraftCommand { get; }
 
-    public IAsyncRelayCommand RefreshFromProfileCommand { get; }
+    public IAsyncRelayCommand ResetFormCommand { get; }
 
-    public IAsyncRelayCommand<DocumentFieldEditViewModel> PromoteToProfileCommand { get; }
+    public IAsyncRelayCommand ExportWordCommand { get; }
+
+    public IAsyncRelayCommand ExportPdfCommand { get; }
+
+    public IAsyncRelayCommand PrintCommand { get; }
 
     public IRelayCommand RetryPreviewCommand { get; }
 
@@ -199,20 +213,7 @@ internal sealed class DocumentEditorViewModel : ObservableObject, IDisposable
                 detail?.Fields ?? Array.Empty<ProjectFieldInfo>(),
                 edit.Values,
                 mappings);
-            foreach (var field in _fields)
-            {
-                field.PropertyChanged -= OnFieldPropertyChanged;
-            }
-
-            _fields.Clear();
-            foreach (var field in fields)
-            {
-                var viewModel = new DocumentFieldEditViewModel(field);
-                viewModel.PropertyChanged += OnFieldPropertyChanged;
-                _fields.Add(viewModel);
-            }
-
-            OnPropertyChanged(nameof(HasFields));
+            ApplyFields(fields);
             StatusMessage = $"Template dasar: {Path.GetFileName(edit.BaseTemplatePath)}";
             IsStatusSuccess = true;
             SchedulePreview();
@@ -281,8 +282,7 @@ internal sealed class DocumentEditorViewModel : ObservableObject, IDisposable
 
     private async Task RenderPreviewAsync(long requestId, CancellationToken cancellationToken)
     {
-        var values = _aliasService.BuildValues(_fields.Select(field => field.ToModel()).ToArray());
-        var pdfPath = await _wordService.RenderAsync(_baseTemplatePath!, values, cancellationToken);
+        var pdfPath = await _wordService.RenderAsync(_baseTemplatePath!, BuildValues(), cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         var pages = await _pdfRenderer.RenderAsync(pdfPath, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
@@ -310,7 +310,7 @@ internal sealed class DocumentEditorViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HasPreview));
     }
 
-    private async Task SaveAsync()
+    private async Task SaveDraftAsync()
     {
         if (_outputPath is null || File.Exists(_outputPath) && !_confirmations.ConfirmReplaceOutput(_outputPath))
         {
@@ -321,10 +321,9 @@ internal sealed class DocumentEditorViewModel : ObservableObject, IDisposable
         {
             await _fieldStore.PrepareOutputAsync(_documentId, _outputPath!);
             var fields = _fields.Select(field => field.ToModel()).ToArray();
-            var values = _aliasService.BuildValues(fields);
             await _wordService.ExportAsync(
                 _baseTemplatePath!,
-                values,
+                _aliasService.BuildValues(fields),
                 _outputPath!,
                 GeneratedDocumentKind.Docx);
             await _fieldStore.SaveAsync(new DocumentFieldEditSaveRequest(
@@ -347,67 +346,103 @@ internal sealed class DocumentEditorViewModel : ObservableObject, IDisposable
         });
     }
 
-    private async Task RefreshFromProfileAsync()
+    private async Task ResetAsync()
     {
-        if (!_confirmations.ConfirmRefreshProfileFields())
+        if (!_confirmations.ConfirmReset())
         {
             return;
         }
 
         await RunAsync(async () =>
         {
-            var edit = await _fieldStore.EnsureEditSessionAsync(_documentId);
             var detail = await _projectStore.GetDetailAsync(_projectId);
             var mappings = await _fieldStore.GetMappingsAsync();
-            var refreshed = _aliasService.BuildFields(
+            var fields = _aliasService.BuildFields(
                 _templateFields,
                 detail?.Fields ?? Array.Empty<ProjectFieldInfo>(),
-                edit.Values,
+                Array.Empty<DocumentFieldValueInfo>(),
                 mappings);
-            foreach (var field in _fields)
-            {
-                if (field.IsOverride)
-                {
-                    continue;
-                }
-
-                var candidate = refreshed.FirstOrDefault(item => item.Key == field.Key);
-                if (candidate is null || candidate.IsOverride)
-                {
-                    continue;
-                }
-
-                field.SetValue(candidate.Value);
-            }
-
-            StatusMessage = "Field belum diubah manual diperbarui dari profil pekerjaan.";
+            ApplyFields(fields);
+            StatusMessage = "Field dikembalikan ke nilai profil pekerjaan.";
             IsStatusSuccess = true;
             SchedulePreview();
         });
     }
 
-    private async Task PromoteToProfileAsync(DocumentFieldEditViewModel? field)
+    private async Task ExportAsync(GeneratedDocumentKind kind)
     {
-        if (field is null)
+        var extension = kind == GeneratedDocumentKind.Docx ? ".docx" : ".pdf";
+        var suggested = $"{SafeFileName(DocumentName)}_{DateTime.Now:yyyyMMdd_HHmm}{extension}";
+        var outputPath = _saveFileDialogService.PickSavePath(kind, suggested);
+        if (outputPath is null)
         {
-            return;
-        }
-
-        var key = field.ProfileFieldKey ?? _aliasService.NormalizeKey(field.CanonicalKey);
-        if (!_confirmations.ConfirmPromoteField(key))
-        {
+            StatusMessage = "Ekspor dibatalkan.";
+            IsStatusSuccess = false;
             return;
         }
 
         await RunAsync(async () =>
         {
-            await _fieldStore.PromoteToProjectFieldsAsync(
+            await _wordService.ExportAsync(
+                _baseTemplatePath!,
+                BuildValues(),
+                outputPath,
+                kind);
+            var document = new GeneratedDocumentInfo(
+                Guid.NewGuid(),
                 _documentId,
-                new[] { new ProjectFieldSaveInfo(key, field.Value) });
-            StatusMessage = $"Nilai field '{key}' disimpan ke profil pekerjaan.";
+                Path.GetFileNameWithoutExtension(_baseTemplatePath!),
+                Path.GetFileName(outputPath),
+                kind,
+                outputPath,
+                new FileInfo(outputPath).Length,
+                DateTimeOffset.UtcNow);
+            await _generatedDocumentStore.RecordAsync(document);
+            StatusMessage = $"Ekspor {document.FormatLabel} berhasil: {document.DocumentName}";
             IsStatusSuccess = true;
         });
     }
+
+    private async Task PrintAsync(CancellationToken cancellationToken)
+    {
+        await RunAsync(async () =>
+        {
+            await _wordService.PrintAsync(_baseTemplatePath!, BuildValues(), cancellationToken);
+            var document = new GeneratedDocumentInfo(
+                Guid.NewGuid(),
+                _documentId,
+                Path.GetFileNameWithoutExtension(_baseTemplatePath!),
+                $"{DocumentName} - Cetak",
+                GeneratedDocumentKind.Print,
+                string.Empty,
+                0,
+                DateTimeOffset.UtcNow);
+            await _generatedDocumentStore.RecordAsync(document);
+            StatusMessage = "Dokumen berhasil dikirim ke printer.";
+            IsStatusSuccess = true;
+        });
+    }
+
+    private void ApplyFields(IReadOnlyList<DocumentFieldEditField> fields)
+    {
+        foreach (var field in _fields)
+        {
+            field.PropertyChanged -= OnFieldPropertyChanged;
+        }
+
+        _fields.Clear();
+        foreach (var field in fields)
+        {
+            var viewModel = new DocumentFieldEditViewModel(field);
+            viewModel.PropertyChanged += OnFieldPropertyChanged;
+            _fields.Add(viewModel);
+        }
+
+        OnPropertyChanged(nameof(HasFields));
+    }
+
+    private IReadOnlyDictionary<string, string> BuildValues() =>
+        _aliasService.BuildValues(_fields.Select(field => field.ToModel()).ToArray());
 
     private void FitWidth(double availableWidth)
     {
@@ -429,9 +464,11 @@ internal sealed class DocumentEditorViewModel : ObservableObject, IDisposable
 
     private void NotifyCommands()
     {
-        SaveCommand.NotifyCanExecuteChanged();
-        RefreshFromProfileCommand.NotifyCanExecuteChanged();
-        PromoteToProfileCommand.NotifyCanExecuteChanged();
+        SaveDraftCommand.NotifyCanExecuteChanged();
+        ResetFormCommand.NotifyCanExecuteChanged();
+        ExportWordCommand.NotifyCanExecuteChanged();
+        ExportPdfCommand.NotifyCanExecuteChanged();
+        PrintCommand.NotifyCanExecuteChanged();
     }
 
     private async Task RunAsync(Func<Task> action)
@@ -451,5 +488,12 @@ internal sealed class DocumentEditorViewModel : ObservableObject, IDisposable
         {
             IsBusy = false;
         }
+    }
+
+    private static string SafeFileName(string value)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var cleaned = new string(value.Select(character => invalid.Contains(character) ? '_' : character).ToArray());
+        return string.IsNullOrWhiteSpace(cleaned) ? "Surat" : cleaned;
     }
 }

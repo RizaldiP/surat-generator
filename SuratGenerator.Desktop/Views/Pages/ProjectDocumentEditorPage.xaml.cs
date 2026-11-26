@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using SuratGenerator.Desktop.Helpers;
 using SuratGenerator.Desktop.Services;
 using SuratGenerator.Desktop.ViewModels;
+using SuratGenerator.Infrastructure.Services;
 
 namespace SuratGenerator.Desktop.Views.Pages;
 
@@ -22,6 +23,8 @@ public partial class ProjectDocumentEditorPage : Page
             App.WordPdfRenderer,
             new WindowsPdfPageRenderer(),
             new ConfirmationService(),
+            new SaveFileDialogService(),
+            new GeneratedDocumentStore(),
             App.Navigation,
             App.Logger);
         _viewModel.Initialize(documentId);

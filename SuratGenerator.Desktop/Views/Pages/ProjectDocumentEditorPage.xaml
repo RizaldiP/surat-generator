@@ -2,7 +2,8 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-      xmlns:controls="clr-namespace:SuratGenerator.Desktop.Views.Controls"
+       xmlns:controls="clr-namespace:SuratGenerator.Desktop.Views.Controls"
+      ScrollViewer.CanContentScroll="False"
       Background="{DynamicResource AppBackgroundBrush}">
     <Grid Margin="24">
         <Grid.RowDefinitions>
@@ -15,7 +16,7 @@
         <StackPanel Grid.Row="0">
             <TextBlock Text="Isi Dokumen Pekerjaan" Style="{StaticResource AppTitleText}"/>
             <TextBlock Margin="0,4,0,0"
-                       Text="Field diisi otomatis dari profil pekerjaan. Perubahan manual hanya berlaku untuk dokumen ini sampai Anda menyimpannya ke profil."
+                       Text="Field diisi otomatis dari profil pekerjaan. Simpan Draft untuk menulis hasil ke dokumen proyek."
                        Style="{StaticResource AppSecondaryText}"/>
         </StackPanel>
 
@@ -69,11 +70,6 @@
                                             </DockPanel>
                                             <ui:TextBox PlaceholderText="Isi nilai dokumen"
                                                         Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"/>
-                                            <ui:Button Margin="0,6,0,0"
-                                                       Command="{Binding DataContext.PromoteToProfileCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                                                       CommandParameter="{Binding}"
-                                                       Content="Simpan ke Profil"
-                                                       Icon="{ui:SymbolIcon Save24}"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -236,14 +232,25 @@
 
         <Border Grid.Row="3" Style="{StaticResource AppCard}" Margin="0,12,0,0" Padding="12">
             <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                <ui:Button Command="{Binding RefreshFromProfileCommand}"
-                           Content="Perbarui dari Profil"
-                           Icon="{ui:SymbolIcon ArrowSync24}"/>
+                <ui:Button Content="Simpan Draft"
+                           Command="{Binding SaveDraftCommand}"
+                           Icon="{ui:SymbolIcon SaveEdit24}"/>
                 <ui:Button Margin="8,0,0,0"
-                           Appearance="Primary"
-                           Command="{Binding SaveCommand}"
-                           Content="Simpan Hasil"
-                           Icon="{ui:SymbolIcon Save24}"/>
+                           Content="Reset"
+                           Command="{Binding ResetFormCommand}"
+                           Icon="{ui:SymbolIcon ArrowReset24}"/>
+                <ui:Button Margin="8,0,0,0"
+                           Content="Ekspor Word"
+                           Command="{Binding ExportWordCommand}"
+                           Icon="{ui:SymbolIcon DocumentArrowDown24}"/>
+                <ui:Button Margin="8,0,0,0"
+                           Content="Ekspor PDF"
+                           Command="{Binding ExportPdfCommand}"
+                           Icon="{ui:SymbolIcon DocumentPdf24}"/>
+                <ui:Button Margin="8,0,0,0"
+                           Content="Cetak"
+                           Command="{Binding PrintCommand}"
+                           Icon="{ui:SymbolIcon DocumentPrint24}"/>
             </StackPanel>
         </Border>
     </Grid>
