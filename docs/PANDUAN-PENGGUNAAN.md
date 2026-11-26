@@ -78,6 +78,19 @@ Pada halaman **Master Struktur Folder** Anda dapat:
 
 Perubahan struktur hanya berlaku untuk pekerjaan baru atau selanjutnya. Pekerjaan yang sudah dibuat tetap memakai strukturnya sendiri. Master dokumen yang memakai kategori yang dihapus tetap tersimpan, tetapi kolom kategorinya ditampilkan sebagai `-`.
 
+## Catatan
+
+Pada halaman **Catatan** Anda dapat:
+
+- Menambah, mengedit, mengurutkan, dan menghapus catatan, misalnya catatan **Pembuatan SIK**.
+- Mengisi tiap syarat dengan nama dan keterangan, misalnya **Surat Permohonan**, **SC**, dan **SPMK**.
+- Menambah, mengedit, mengurutkan, dan menghapus syarat pada catatan yang dipilih.
+- Mencari catatan berdasarkan judul, nama syarat, atau keterangan. Pencarian juga menyaring syarat yang ditampilkan.
+- Menekan **Refresh** untuk memuat ulang data.
+- Tombol **Simpan** pada dialog catatan dan syarat juga bisa dipicu dengan **Ctrl+Enter**.
+
+Catatan berdiri sendiri sebagai referensi. Mengubah atau menghapus catatan tidak memengaruhi Master Struktur Folder, master dokumen, atau pekerjaan yang sudah dibuat.
+
 ## Manajemen Pekerjaan
 
 - Tombol **Buat Pekerjaan** membuat folder proyek dan menyalin master dokumen aktif dari kategori yang aktif. Master yang nonaktif atau diarsipkan tidak disalin dan tidak menampilkan peringatan pada detail pekerjaan.
@@ -112,12 +125,14 @@ Halaman **Panduan** berisi ringkasan fungsi tiap menu, alur cepat penggunaan, ri
 
 Backup harian otomatis dibuat saat aplikasi dibuka bila belum ada backup valid dalam 24 jam terakhir. Arsip yang sudah dihapus atau tidak valid tidak dihitung sebagai backup harian.
 
+Arsip database mencakup seluruh data aplikasi, termasuk catatan beserta daftar syarat dan keterangannya. Saat memulihkan, centang **Database** agar data catatan ikut terambil.
+
 ### Memulihkan Backup
 
 1. Buka **Pengaturan**, lalu bagian **Restore Backup**.
 2. Tekan **Pilih Arsip**, lalu pilih arsip backup `.zip`.
 3. Tekan **Periksa Arsip** sebelum menyiapkan restore. Tombol restore hanya aktif setelah pemeriksaan berhasil.
-4. Periksa daftar file, konflik, komponen yang akan dipulihkan (database, pengaturan, template, master dokumen), dan pilihan proyek.
+4. Periksa daftar file, konflik, komponen yang akan dipulihkan (database termasuk catatan, pengaturan, template, master dokumen), dan pilihan proyek.
 5. Tekan **Siapkan Restore + Restart**, lalu konfirmasi.
 6. Aplikasi membuat backup kondisi saat ini terlebih dahulu. Setelah itu, restart aplikasi untuk menyelesaikan restore.
 7. Jika restore gagal saat restart, pesan kesalahan ditampilkan di Pengaturan dan file lama dikembalikan dari backup pra-restore.

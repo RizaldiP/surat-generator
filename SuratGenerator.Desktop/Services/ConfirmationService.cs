@@ -125,6 +125,26 @@ internal sealed class ConfirmationService : IConfirmationService
             MessageBoxResult.No) == MessageBoxResult.Yes;
     }
 
+    public bool ConfirmDeleteNote(string title)
+    {
+        return MessageBox.Show(
+            $"Hapus catatan '{title}' beserta seluruh syarat di dalamnya?",
+            "Konfirmasi Hapus Catatan",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No) == MessageBoxResult.Yes;
+    }
+
+    public bool ConfirmDeleteNoteItem(string displayName)
+    {
+        return MessageBox.Show(
+            $"Hapus syarat '{displayName}' dari catatan ini?",
+            "Konfirmasi Hapus Syarat",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No) == MessageBoxResult.Yes;
+    }
+
     public bool ConfirmToggleChecklistItem(string displayName, bool nextActive)
     {
         var action = nextActive ? "Aktifkan" : "Nonaktifkan";

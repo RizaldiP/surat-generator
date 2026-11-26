@@ -1,0 +1,56 @@
+<ui:FluentWindow x:Class="SuratGenerator.Desktop.Views.NoteItemEditWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 Title="Syarat Catatan"
+                 Width="480"
+                 Height="400"
+                 MinWidth="420"
+                 MinHeight="360"
+                 ResizeMode="NoResize"
+                 WindowStartupLocation="CenterOwner"
+                  ExtendsContentIntoTitleBar="True"
+                  WindowBackdropType="Acrylic">
+    <Grid Margin="24" PreviewKeyDown="OnPreviewKeyDown">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0"
+                     Title="{Binding WindowTitle}"
+                     Margin="-24,-24,-24,0"/>
+
+        <StackPanel Grid.Row="1" Margin="0,28,0,0">
+            <TextBlock Text="Nama syarat" Style="{StaticResource AppBodyText}"/>
+            <ui:TextBox Margin="0,6,0,0"
+                        MaxLength="100"
+                        Text="{Binding ItemName, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBlock Margin="0,16,0,0"
+                       Text="Keterangan"
+                       Style="{StaticResource AppBodyText}"/>
+            <ui:TextBox Margin="0,6,0,0"
+                        Height="110"
+                        MaxLength="500"
+                        AcceptsReturn="True"
+                        TextWrapping="Wrap"
+                        VerticalScrollBarVisibility="Auto"
+                        Text="{Binding ItemDescription, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBlock Margin="0,8,0,0"
+                       Text="Contoh: Surat Permohonan — keterangan: ditandatangani kepala bidang."
+                       Style="{StaticResource AppSecondaryText}"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2"
+                    Margin="0,16,0,0"
+                    HorizontalAlignment="Right"
+                    Orientation="Horizontal">
+            <ui:Button Content="Batal" Click="OnCancel"/>
+            <ui:Button Margin="8,0,0,0"
+                       Appearance="Primary"
+                       Content="Simpan"
+                       Command="{Binding SaveCommand}"/>
+        </StackPanel>
+    </Grid>
+</ui:FluentWindow>

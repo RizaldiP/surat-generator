@@ -33,6 +33,10 @@ internal sealed class PanduanViewModel
                 "Atur kategori dan item wajib untuk struktur pekerjaan baru. Pekerjaan lama tidak berubah.",
                 () => _navigation.NavigateTo<MasterStructurePage>()),
             new PanduanMenuRow(
+                "Catatan",
+                "Buat catatan syarat pembuatan surat, lalu kelola daftar syarat beserta keterangannya. Data ini berdiri sendiri dan tidak mengubah pekerjaan.",
+                () => _navigation.NavigateTo<CatatanPage>()),
+            new PanduanMenuRow(
                 "Master Dokumen",
                 "Unggah, ganti, aktifkan/nonaktifkan, dan arsipkan dokumen master beserta riwayat versinya.",
                 () => _navigation.NavigateTo<MasterDocumentPage>()),

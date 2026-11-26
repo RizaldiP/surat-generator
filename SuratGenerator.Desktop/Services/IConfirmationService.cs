@@ -28,6 +28,10 @@ internal interface IConfirmationService
 
     bool ConfirmDeleteChecklistItem(string displayName);
 
+    bool ConfirmDeleteNote(string title);
+
+    bool ConfirmDeleteNoteItem(string displayName);
+
     bool ConfirmDeleteProject(string shipName, string jobName);
 
     bool ConfirmDeleteDocument(string displayName, bool hasFile);

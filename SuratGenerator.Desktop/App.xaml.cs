@@ -37,6 +37,12 @@ public partial class App : Application
     private static readonly Lazy<ICategoryChecklistItemStore> CategoryChecklistItemStoreService = new(() =>
         new CategoryChecklistItemStore(AppLogger));
 
+    private static readonly Lazy<INoteStore> NoteStoreService = new(() =>
+        new NoteStore(AppLogger));
+
+    private static readonly Lazy<INoteItemStore> NoteItemStoreService = new(() =>
+        new NoteItemStore(AppLogger));
+
     private static readonly Lazy<IMasterDocumentStore> MasterDocumentStoreService = new(() =>
         new MasterDocumentStore(
             AppLogger,
@@ -98,6 +104,10 @@ public partial class App : Application
 
     internal static ICategoryChecklistItemStore CategoryChecklistItems => CategoryChecklistItemStoreService.Value;
 
+    internal static INoteStore Notes => NoteStoreService.Value;
+
+    internal static INoteItemStore NoteItems => NoteItemStoreService.Value;
+
     internal static IMasterDocumentStore MasterDocuments => MasterDocumentStoreService.Value;
 
     internal static IProjectStore Projects => ProjectStoreService.Value;
@@ -153,6 +163,16 @@ public partial class App : Application
         if (CategoryChecklistItemStoreService.IsValueCreated)
         {
             (CategoryChecklistItemStoreService.Value as IDisposable)?.Dispose();
+        }
+
+        if (NoteStoreService.IsValueCreated)
+        {
+            (NoteStoreService.Value as IDisposable)?.Dispose();
+        }
+
+        if (NoteItemStoreService.IsValueCreated)
+        {
+            (NoteItemStoreService.Value as IDisposable)?.Dispose();
         }
 
         if (MasterDocumentStoreService.IsValueCreated)

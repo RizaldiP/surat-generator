@@ -172,6 +172,7 @@ if ($process.MainWindowHandle -eq [IntPtr]::Zero) {
         @{ Name = 'Buat Surat'; Marker = '' },
         @{ Name = 'Template'; Marker = 'Pindai Folder' },
         @{ Name = 'Master Struktur Folder'; Marker = 'Tambah Kategori' },
+        @{ Name = 'Catatan'; Marker = 'Tambah Catatan' },
         @{ Name = 'Master Dokumen'; Marker = 'Unggah File' },
         @{ Name = 'Manajemen Pekerjaan'; Marker = 'Buat Pekerjaan' },
         @{ Name = 'Riwayat Surat'; Marker = '' },

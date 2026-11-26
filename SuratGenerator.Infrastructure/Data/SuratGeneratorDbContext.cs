@@ -28,6 +28,10 @@ public sealed class SuratGeneratorDbContext : DbContext
 
     public DbSet<CategoryChecklistItemEntity> CategoryChecklistItems => Set<CategoryChecklistItemEntity>();
 
+    public DbSet<NoteEntity> Notes => Set<NoteEntity>();
+
+    public DbSet<NoteItemEntity> NoteItems => Set<NoteItemEntity>();
+
     public DbSet<MasterDocumentEntity> MasterDocuments => Set<MasterDocumentEntity>();
 
     public DbSet<MasterDocumentVersionEntity> MasterDocumentVersions => Set<MasterDocumentVersionEntity>();
@@ -138,6 +142,26 @@ public sealed class SuratGeneratorDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.DisplayName).IsRequired();
             entity.HasIndex(x => x.CategoryId);
+        });
+
+        modelBuilder.Entity<NoteEntity>(entity =>
+        {
+            entity.ToTable("Notes");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).IsRequired();
+            entity.Property(x => x.NormalizedTitle).IsRequired();
+            entity.HasIndex(x => x.NormalizedTitle).IsUnique();
+            entity.HasIndex(x => x.SortOrder);
+        });
+
+        modelBuilder.Entity<NoteItemEntity>(entity =>
+        {
+            entity.ToTable("NoteItems");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.DisplayName).IsRequired();
+            entity.Property(x => x.Description).IsRequired();
+            entity.HasIndex(x => x.NoteId);
+            entity.HasIndex(x => new { x.NoteId, x.SortOrder });
         });
 
         modelBuilder.Entity<MasterDocumentEntity>(entity =>

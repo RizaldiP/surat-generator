@@ -32,6 +32,9 @@
                 <ui:NavigationViewItem Content="Master Struktur Folder"
                                        Icon="{ui:SymbolIcon FolderOpen24}"
                                        TargetPageType="{x:Type pages:MasterStructurePage}"/>
+                <ui:NavigationViewItem Content="Catatan"
+                                       Icon="{ui:SymbolIcon Notebook24}"
+                                       TargetPageType="{x:Type pages:CatatanPage}"/>
                 <ui:NavigationViewItem Content="Master Dokumen"
                                        Icon="{ui:SymbolIcon Document24}"
                                        TargetPageType="{x:Type pages:MasterDocumentPage}"/>

@@ -84,6 +84,7 @@ internal static class DatabaseInitializer
         ApplyV33Schema(dbContext);
         ApplyV34Schema(dbContext);
         ApplyV35Schema(dbContext);
+        ApplyV36Schema(dbContext);
     }
 
     private static void ApplyV31Schema(SuratGeneratorDbContext dbContext)
@@ -294,6 +295,35 @@ internal static class DatabaseInitializer
         dbContext.Database.ExecuteSqlRaw(
             "INSERT OR IGNORE INTO \"SchemaVersions\" (\"Version\", \"AppliedAt\") VALUES ({0}, {1});",
             "v3.5",
+            DateTimeOffset.UtcNow.ToString("o"));
+    }
+
+    private static void ApplyV36Schema(SuratGeneratorDbContext dbContext)
+    {
+        dbContext.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS "Notes" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_Notes" PRIMARY KEY,
+                "Title" TEXT NOT NULL,
+                "NormalizedTitle" TEXT NOT NULL,
+                "SortOrder" INTEGER NOT NULL,
+                "UpdatedAt" TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS "NoteItems" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_NoteItems" PRIMARY KEY,
+                "NoteId" TEXT NOT NULL,
+                "DisplayName" TEXT NOT NULL,
+                "Description" TEXT NOT NULL,
+                "SortOrder" INTEGER NOT NULL,
+                "UpdatedAt" TEXT NOT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_Notes_NormalizedTitle" ON "Notes" ("NormalizedTitle");
+            CREATE INDEX IF NOT EXISTS "IX_Notes_SortOrder" ON "Notes" ("SortOrder");
+            CREATE INDEX IF NOT EXISTS "IX_NoteItems_NoteId" ON "NoteItems" ("NoteId");
+            CREATE INDEX IF NOT EXISTS "IX_NoteItems_NoteId_SortOrder" ON "NoteItems" ("NoteId", "SortOrder");
+            """);
+        dbContext.Database.ExecuteSqlRaw(
+            "INSERT OR IGNORE INTO \"SchemaVersions\" (\"Version\", \"AppliedAt\") VALUES ({0}, {1});",
+            "v3.6",
             DateTimeOffset.UtcNow.ToString("o"));
     }
 

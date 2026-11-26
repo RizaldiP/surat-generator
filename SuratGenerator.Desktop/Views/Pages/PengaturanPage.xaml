@@ -144,7 +144,7 @@
                 <StackPanel>
                     <TextBlock Text="Backup" Style="{StaticResource AppSectionText}"/>
                     <TextBlock Margin="0,4,0,10"
-                               Text="Buat salinan database, pengaturan, template, master dokumen, dan proyek. Backup harian otomatis dibuat saat aplikasi dibuka jika belum ada backup valid dalam 24 jam."
+                               Text="Buat salinan database (termasuk catatan dan syaratnya), pengaturan, template, master dokumen, dan proyek. Backup harian otomatis dibuat saat aplikasi dibuka jika belum ada backup valid dalam 24 jam."
                                Style="{StaticResource AppSecondaryText}"/>
                      <Grid Margin="0,0,0,10">
                          <Grid.ColumnDefinitions>

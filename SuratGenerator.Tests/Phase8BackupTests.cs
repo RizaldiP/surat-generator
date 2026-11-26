@@ -127,6 +127,58 @@ public class Phase8BackupTests
     }
 
     [Fact]
+    public async Task RestoreDatabaseMengembalikanCatatanDanSyarat()
+    {
+        var environment = CreateEnvironment();
+        try
+        {
+            using (var notes = new NoteStore(environment.Options))
+            using (var items = new NoteItemStore(environment.Options))
+            {
+                var note = await notes.AddAsync("Pembuatan SIK");
+                await items.AddAsync(note.Id, "Surat Permohonan", "Dari pemohon");
+                await items.AddAsync(note.Id, "SC", "Surat keterangan");
+            }
+
+            var backup = await environment.BackupService.CreateAsync(new BackupRequest(
+                environment.BackupsRoot,
+                BackupKinds.Manual,
+                true,
+                Array.Empty<Guid>(),
+                "Uji backup catatan"));
+
+            using (var notes = new NoteStore(environment.Options))
+            using (var items = new NoteItemStore(environment.Options))
+            {
+                var note = Assert.Single(await notes.GetAllAsync());
+                await notes.DeleteAsync(note.Id);
+                Assert.Empty(await notes.GetAllAsync());
+                Assert.Empty(await items.GetAllAsync());
+            }
+
+            await environment.BackupService.StageRestoreAsync(new RestoreRequest(backup.ArchivePath));
+            Assert.True(await environment.BackupService.FinalizePendingRestoreAsync());
+
+            using (var notes = new NoteStore(environment.Options))
+            using (var items = new NoteItemStore(environment.Options))
+            {
+                var restored = Assert.Single(await notes.GetAllAsync());
+                Assert.Equal("Pembuatan SIK", restored.Title);
+                var restoredItems = await items.GetByNoteAsync(restored.Id);
+                Assert.Equal(2, restoredItems.Count);
+                Assert.Contains(restoredItems, item =>
+                    item.DisplayName == "Surat Permohonan" && item.Description == "Dari pemohon");
+                Assert.Contains(restoredItems, item =>
+                    item.DisplayName == "SC" && item.Description == "Surat keterangan");
+            }
+        }
+        finally
+        {
+            Cleanup(environment);
+        }
+    }
+
+    [Fact]
     public async Task RestoreHanyaProyekTerpilih()
     {
         var environment = CreateEnvironment();

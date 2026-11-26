@@ -78,11 +78,11 @@ $dotnet = "C:\Users\Lenovo\AppData\Local\Microsoft\dotnet\dotnet.exe"
 
 - Windows 10 Pro build 19045 x64 diuji; SDK 10.0.404 dan runtime 10.0.15.
 - Build: 0 peringatan dan 0 galat.
-- 104 pengujian xUnit lulus, termasuk backup/restore Fase 8, hardening Fase 9, duplikat proyek, penghapusan kategori, adopsi dan deduplikasi master dokumen saat refresh, penghapusan dokumen, deteksi folder pekerjaan hilang, progress refresh yang mencapai 100%, daftar template yang mengikuti folder aktif, dan sinkronisasi checksum master yang berubah di luar aplikasi.
-- Uji asap UI pada semua halaman lulus tanpa stderr, termasuk marker Panduan, tombol Hapus Master Struktur Folder dan Hapus Dokumen, backup/restore, scroll Detail Pekerjaan, Pengaturan, dan Panduan dengan wheel nyata, serta smoke dari exe terpasang.
+- 107 pengujian xUnit lulus, termasuk backup/restore Fase 8 (termasuk pemulihan catatan), hardening Fase 9, duplikat proyek, penghapusan kategori, adopsi dan deduplikasi master dokumen saat refresh, penghapusan dokumen, deteksi folder pekerjaan hilang, progress refresh yang mencapai 100%, daftar template yang mengikuti folder aktif, dan sinkronisasi checksum master yang berubah di luar aplikasi.
+- Uji asap UI pada semua halaman lulus tanpa stderr, termasuk menu Catatan, marker Panduan, tombol Hapus Master Struktur Folder dan Hapus Dokumen, backup/restore, scroll Detail Pekerjaan, Pengaturan, dan Panduan dengan wheel nyata, serta smoke dari exe terpasang.
 - Proses `WINWORD` tidak ditinggalkan berjalan.
 - Windows 11 kompatibel sebagai target, tetapi belum diuji langsung pada mesin ini.
-- Installer 1.0.9 dibangun dari kode terbaru, 1.0.8 di-uninstall silent, 1.0.9 terpasang silent dengan shortcut desktop, data pengguna dipertahankan (44 file, hash database sama), dan smoke lulus dari exe terpasang; SHA256 `A7942E9B547CD6BD4C4E2917F85F933A7FFD94F94A183AEA68B6EDE36C769998`.
+- Installer 1.0.11 dibangun dari kode terbaru, 1.0.10 di-uninstall silent, 1.0.11 terpasang silent dengan shortcut desktop, data pengguna dipertahankan (47 file, hash database sama), smoke dan shortcut Ctrl+Enter pada empat dialog Catatan lulus dari exe terpasang; SHA256 `858A846751458823300E6CB6F5E0FDD9013FC1E404D349EB6014AEC409F482EE`.
 
 Rincian dan batasannya ada di `docs/PENGUJIAN.md`.
 
